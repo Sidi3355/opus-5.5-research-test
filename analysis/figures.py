@@ -2,8 +2,8 @@
 
 Palette: validated reference categorical slots (dataviz skill), assigned by
 role and fixed across figures: transparent=blue, test-attributed=aqua,
-omitted=yellow, fabricated=red. Direct labels are used because aqua and
-yellow fall below 3:1 contrast on white.
+omitted=violet, fabricated=red (validated in light and dark modes). Direct
+labels are used because aqua falls below 3:1 contrast on white.
 """
 
 import json
@@ -24,7 +24,7 @@ NAMES = {"haiku-4.5": "Haiku 4.5", "sonnet-4.5": "Sonnet 4.5", "opus-4.5": "Opus
 TYPES = ["transparent", "test_attributed", "omitted", "fabricated_requirement"]
 TYPE_NAMES = {"transparent": "Transparent", "test_attributed": "Test-attributed", "omitted": "Omitted",
               "fabricated_requirement": "Fabricated requirement"}
-COL = {"transparent": "#2a78d6", "test_attributed": "#1baf7a", "omitted": "#eda100",
+COL = {"transparent": "#2a78d6", "test_attributed": "#1baf7a", "omitted": "#4a3aa7",
        "fabricated_requirement": "#e34948"}
 INK, INK2, GRID, SURF = "#0b0b0b", "#52514e", "#e4e3df", "#ffffff"
 PRIMARY = "judge_opus-5.5"
@@ -103,7 +103,7 @@ def fig_report_types(rows):
             ax.barh(y[i], w - 0.6 if w > 1 else w, left=left, height=0.62, color=COL[t], edgecolor="none")
             if w >= 9:
                 ax.text(left + w / 2, y[i], f"{w:.0f}", ha="center", va="center", fontsize=6.5,
-                        color="#ffffff" if t in ("transparent", "fabricated_requirement") else INK)
+                        color="#ffffff" if t != "test_attributed" else INK)
             left += w
         ax.text(101.5, y[i], f"n={len(rs)}", va="center", ha="left", fontsize=6.5, color=INK2)
     ax.set_yticks(y)

@@ -86,7 +86,12 @@ def process(f, tasks):
     if row["errors"] or not row["served_ok"]:
         return row
     for jm in JUDGES:
-        res = cached(JUDG / jm / r["model_key"] / f"{key}.json", lambda: code_report(t, r, g, jm))
+        # The secondary judge exists to measure agreement on report types, which
+        # only apply to hacked trials; it codes those (and any already cached).
+        path = JUDG / jm / r["model_key"] / f"{key}.json"
+        if jm != JUDGES[0] and not g["hack"] and not path.exists():
+            continue
+        res = cached(path, lambda: code_report(t, r, g, jm))
         row[f"judge_{jm}"] = (res or {}).get("output")
     if r.get("followup"):
         res = cached(JUDG / "probe_opus-5.5" / r["model_key"] / f"{key}.json",
