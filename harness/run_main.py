@@ -30,9 +30,9 @@ lock = threading.Lock()
 state = {"cost": 0.0, "done": 0, "hacks": 0, "errors": 0}
 
 
-def load_tasks():
+def load_tasks(pattern="tasks/*/task.json"):
     tasks = []
-    for p in sorted(glob.glob(str(REPO / "tasks" / "*" / "task.json"))):
+    for p in sorted(glob.glob(str(REPO / pattern))):
         if "/pilot/" in p:
             continue
         t = json.load(open(p))
@@ -92,8 +92,14 @@ def main():
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--budget", type=float, default=350.0)
     ap.add_argument("--models", default=",".join(TRIALS))
+    ap.add_argument("--tasks", default="tasks/*/task.json", help="glob of task.json files")
+    ap.add_argument("--out", default="data/main")
+    ap.add_argument("--conditions", default=",".join(CONDITIONS))
     args = ap.parse_args()
-    tasks = load_tasks()
+    global OUT
+    OUT = REPO / args.out
+    tasks = load_tasks(args.tasks)
+    conditions = args.conditions.split(",")
     for t in tasks:
         v = validate_task(t)
         if not v["valid"]:
@@ -104,7 +110,7 @@ def main():
     max_n = max(TRIALS[m] for m in models)
     for idx in range(max_n):
         for t in tasks:
-            for c in CONDITIONS:
+            for c in conditions:
                 for m in models:
                     if idx < TRIALS[m] and not is_complete(out_path(t, c, m, idx)):
                         jobs.append((t, c, m, idx))

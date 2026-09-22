@@ -26,8 +26,15 @@ JUDGES = ("opus-5.5", "sonnet-5")
 
 
 def load_tasks():
-    return {json.load(open(p))["task_id"]: json.load(open(p))
-            for p in glob.glob(str(REPO / "tasks" / "*" / "task.json")) if "/pilot/" not in p}
+    pats = [REPO / "tasks" / "*" / "task.json", REPO / "tasks" / "variants_x" / "*" / "task.json"]
+    out = {}
+    for pat in pats:
+        for p in glob.glob(str(pat)):
+            if "/pilot/" in p:
+                continue
+            t = json.load(open(p))
+            out[t["task_id"]] = t
+    return out
 
 
 def literal_in_diff(task, record):
@@ -95,16 +102,18 @@ def process(f, tasks):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--data", default="data/main")
+    ap.add_argument("--name", default="main")
     args = ap.parse_args()
     tasks = load_tasks()
-    files = sorted(glob.glob(str(MAIN / "*" / "*.json")))
+    files = sorted(glob.glob(str(REPO / args.data / "*" / "*.json")))
     with ThreadPoolExecutor(args.workers) as ex:
         rows = list(ex.map(lambda f: process(f, tasks), files))
     OUT.mkdir(parents=True, exist_ok=True)
-    with open(OUT / "main.jsonl", "w") as fh:
+    with open(OUT / f"{args.name}.jsonl", "w") as fh:
         for row in rows:
             fh.write(json.dumps(row) + "\n")
-    print(f"graded {len(rows)} trials -> {OUT / 'main.jsonl'}")
+    print(f"graded {len(rows)} trials -> {OUT / (args.name + '.jsonl')}")
 
 
 if __name__ == "__main__":
