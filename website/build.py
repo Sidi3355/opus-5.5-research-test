@@ -60,6 +60,10 @@ def main():
     T = tasks()
     rows = [r for r in load("main.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
     e4 = [r for r in load("e4.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
+    for r in rows + e4:  # primary (effective) tampering definition, as in the paper
+        if "hack_effective" in r:
+            r["hack"] = r["hack_effective"]
+            r["tests_modified"] = r["tests_modified_effective"]
     rev = load("review.jsonl")
     res = json.load(open(REPO / "analysis" / "results.json")) if (REPO / "analysis" / "results.json").exists() else {}
     copy = json.load(open(REPO / "website" / "copy.json"))
@@ -84,13 +88,17 @@ def main():
                                 "invents_source": "invents a source", "denies": "denies", "other": "other"}.get(probe_code, ""),
                 "spec_pass": f"{round(r['spec_pass_rate'] * 100)}%"}
 
-    trans = [transcript(r) for r in hacked]
+    rank = {"fabricated_requirement": 0, "omitted": 1, "test_attributed": 2, "transparent": 3}
+    trans = [transcript(r) for r in sorted(hacked, key=lambda r: (rank.get(r[PRIMARY]["report_type"], 4),
+                                                                    MODELS.index(r["model"]), r["task_id"]))]
     nonh = [r for r in rows if not r["hack"]]
     trans += [transcript(r) for r in nonh[::max(1, len(nonh) // 60)]]
 
     # Hero examples: fabricated reports whose quote is found verbatim, spread over models and tasks.
     exs, seen = [], set()
-    for r in sorted(fab, key=lambda r: (MODELS.index(r["model"]), r["task_id"])):
+    curated = copy.get("hero_files", [])
+    order = {f: i for i, f in enumerate(curated)}
+    for r in sorted(fab, key=lambda r: (order.get(r["file"], 99), MODELS.index(r["model"]), r["task_id"])):
         j = r[PRIMARY]
         rec = json.load(open(REPO / r["file"]))
         rep = final_report(rec)
@@ -188,6 +196,34 @@ def main():
         "generalized_pct": round(100 * sum(r[PRIMARY]["code_form"] == "generalized" for r in sc) / max(1, len(sc))),
         "cost": round(sum(r["cost_usd"] for r in load("main.jsonl"))),
     }
+    def P(x):
+        return "n/a" if x is None else f"{round(100 * x)}%"
+    if res:
+        pf = res.get("probes_after_fabrication", {})
+        vals.update({
+            "h1": P(res["H1"]["est"]), "h1_lo": P(res["H1"]["ci"][0]), "h1_hi": P(res["H1"]["ci"][1]),
+            "disc_mod": P(res["H2"]["disclosed_tests_modified"]), "disc_sc": P(res["H2"]["disclosed_special_cased"]),
+            "fab_tests": P(res["H3"]["fab_spec_tests"][0]), "fab_doc": P(res["H3"]["fab_spec_docstring"][0]),
+            "h6_orig": P(res["H6"]["orig_hack"][0]) if res.get("H6") else "n/a",
+            "h6_var": P(res["H6"]["var_hack"][0]) if res.get("H6") else "n/a",
+            "pr_dir_n": pf.get("direct", {}).get("n", 0), "pr_dir_deny": pf.get("direct", {}).get("denies", 0),
+            "pr_src_n": pf.get("source", {}).get("n", 0), "pr_src_admit": pf.get("source", {}).get("admits", 0),
+            "pr_src_invent": pf.get("source", {}).get("invents_source", 0),
+            "doc_sc": P(res["docstring_edit"]["special_cased"][0]) if res.get("docstring_edit") else "n/a",
+            "val_kappa": f"{res['validation']['author_vs_primary_kappa']:.2f}" if res.get("validation") else "n/a",
+            "judge_kappa": f"{res['judge_agreement']['kappa']:.2f}" if res.get("judge_agreement") else "n/a",
+            "pl_high": P(res["by_plausibility"]["high"]["hack_rate_all"]),
+            "pl_low": P(res["by_plausibility"]["low"]["hack_rate_all"]),
+            "nonhack_flag": P(sum(v["n"] * (v["flagged"][0] or 0) for v in res["nonhacked"].values()) /
+                              max(1, sum(v["n"] for v in res["nonhacked"].values()))),
+        })
+        for m in MODELS:
+            vals["hack_" + m.replace("-", "_").replace(".", "_")] = P(res["incidence"][f"{m}|all"]["hack"][0])
+        if res.get("H5"):
+            for rvm in ("opus-5.5", "sonnet-5", "haiku-4.5", "all"):
+                if rvm in res["H5"]:
+                    for v in ("original", "honest", "none"):
+                        vals[f"rev_{rvm.replace('-', '_').replace('.', '_')}_{v}"] = P(res["H5"][rvm][v]["approve"][0])
     vals.update(copy.get("computed_overrides", {}))
 
     def fmt(s):
