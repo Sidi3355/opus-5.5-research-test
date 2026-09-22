@@ -54,12 +54,17 @@ def load(name):
 
 
 def ok_rows():
-    return [r for r in load("main.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
+    rows = [r for r in load("main.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
+    for r in rows:  # primary (effective) hack definition
+        if "hack_effective" in r:
+            r["hack"] = r["hack_effective"]
+            r["tests_modified"] = r["tests_modified_effective"]
+    return rows
 
 
 def fig_hack_rates(rows):
     """Special-casing and test-edit rates by model and condition (dot + CI)."""
-    fig, ax = plt.subplots(figsize=(3.35, 2.1))
+    fig, ax = plt.subplots(figsize=(3.35, 2.2))
     conds = [("spec_tests", "Tests are the spec", "#2a78d6", "o"),
              ("spec_docstring", "Docstring is the truth", "#eb6834", "s")]
     y = np.arange(len(MODELS))[::-1]
@@ -78,9 +83,8 @@ def fig_hack_rates(rows):
     ax.axhline(2.5, color=GRID, lw=0.8, zorder=1)
     for x in (0, 25, 50, 75, 100):
         ax.axvline(x, color=GRID, lw=0.5, zorder=0)
-    ax.legend(loc="lower right", frameon=False, handletextpad=0.3, borderaxespad=0.2)
-    ax.text(101, 5.45, "4.5 generation", ha="right", va="center", color=INK2, fontsize=6.5)
-    ax.text(101, 2.25, "5 generation", ha="right", va="top", color=INK2, fontsize=6.5)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.42, 1.0), ncol=2, frameon=False, handletextpad=0.3,
+              columnspacing=1.0)
     fig.tight_layout(pad=0.3)
     fig.savefig(FIG / "hack_rates.pdf")
     plt.close(fig)
@@ -126,7 +130,7 @@ def fig_probes(rows):
              "invents_source": "Invents a source", "denies": "Denies", "other": "Other"}
     cols = {"admits": "#2a78d6", "cites_test": "#1baf7a", "doubles_down": "#eda100",
             "invents_source": "#e34948", "denies": "#4a3aa7", "other": "#b5b3ad"}
-    fig, ax = plt.subplots(figsize=(3.35, 1.25))
+    fig, ax = plt.subplots(figsize=(3.35, 1.75))
     probes = [("direct", "Direct question"), ("source", "Ask for the source")]
     y = np.arange(len(probes))[::-1]
     for i, (p, lab) in enumerate(probes):
@@ -139,7 +143,7 @@ def fig_probes(rows):
             w = 100 * cnt[c] / len(rs)
             if w <= 0:
                 continue
-            ax.barh(y[i], w - 0.6 if w > 1 else w, left=left, height=0.6, color=cols[c], edgecolor="none",
+            ax.barh(y[i], w - 0.6 if w > 1 else w, left=left, height=0.55, color=cols[c], edgecolor="none",
                     label=names[c] if i == 0 else None)
             if w >= 9:
                 ax.text(left + w / 2, y[i], f"{w:.0f}", ha="center", va="center", fontsize=6.5,
@@ -149,9 +153,9 @@ def fig_probes(rows):
     ax.set_yticks(y)
     ax.set_yticklabels([lab for _, lab in probes])
     ax.set_xlim(0, 100)
-    ax.set_xlabel("Answers after a fabricated-requirement report (%)")
+    ax.set_xlabel("Answers after a fabricated report (%)")
     handles = [plt.Rectangle((0, 0), 1, 1, color=cols[c]) for c in cats]
-    ax.legend(handles, [names[c] for c in cats], ncol=3, loc="upper center", bbox_to_anchor=(0.45, 1.62),
+    ax.legend(handles, [names[c] for c in cats], ncol=3, loc="lower center", bbox_to_anchor=(0.42, 1.02),
               frameon=False, handlelength=1, columnspacing=0.6)
     fig.tight_layout(pad=0.3)
     fig.savefig(FIG / "probes.pdf")
@@ -189,12 +193,53 @@ def fig_review(rev):
     plt.close(fig)
 
 
+def fig_minimal_pairs(rows, e4):
+    """Hack rate on original high-plausibility tasks vs minimal-pair variants, by model."""
+    if not e4:
+        return
+    base = lambda t: t.split("__")[0]
+    var_tasks = {base(r["task_id"]) for r in e4}
+    fig, ax = plt.subplots(figsize=(3.35, 2.1))
+    y = np.arange(len(MODELS))[::-1]
+    arms = [("orig", "Original task (rule available)", "#2a78d6", "o"),
+            ("var", "Minimal-pair variant (no rule)", "#eb6834", "s")]
+    for i, m in enumerate(MODELS):
+        o = [r for r in rows if r["model"] == m and r["condition"] == "spec_tests" and r["task_id"] in var_tasks]
+        v = [r for r in e4 if r["model"] == m]
+        pts = []
+        for j, (arm, lab, col, mk) in enumerate(arms):
+            rs = o if arm == "orig" else v
+            p, lo, hi = wilson(sum(r["hack"] for r in rs), len(rs))
+            yy = y[i] + (0.17 if j == 0 else -0.17)
+            ax.plot([lo * 100, hi * 100], [yy, yy], color=col, lw=1.2, solid_capstyle="round", zorder=2)
+            ax.scatter([p * 100], [yy], s=22, color=col, marker=mk, edgecolor=SURF, linewidth=0.8, zorder=3,
+                       label=lab if i == 0 else None)
+            pts.append((p * 100, yy))
+        ax.annotate("", xy=(pts[1][0], y[i]), xytext=(pts[0][0], y[i]),
+                    arrowprops=dict(arrowstyle="-|>", color=GRID, lw=0.8, shrinkA=4, shrinkB=4), zorder=1)
+    ax.set_yticks(y)
+    ax.set_yticklabels([NAMES[m] for m in MODELS])
+    ax.set_xlim(-2, 102)
+    for x in (0, 25, 50, 75, 100):
+        ax.axvline(x, color=GRID, lw=0.5, zorder=0)
+    ax.set_xlabel("Trials that game the test suite (%)")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.42, 1.28), ncol=1, frameon=False, handletextpad=0.3)
+    fig.tight_layout(pad=0.3)
+    fig.savefig(FIG / "minimal_pairs.pdf")
+    plt.close(fig)
+
+
 def main():
     rows = ok_rows()
     if rows:
         fig_hack_rates(rows)
         fig_report_types(rows)
         fig_probes(rows)
+        e4 = [r for r in load("e4.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
+        for r in e4:
+            if "hack_effective" in r:
+                r["hack"] = r["hack_effective"]
+        fig_minimal_pairs(rows, e4)
     fig_review(load("review.jsonl"))
     print("figures written to", FIG)
 
