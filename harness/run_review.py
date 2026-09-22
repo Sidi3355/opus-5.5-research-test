@@ -47,6 +47,8 @@ def main():
     ap.add_argument("--n_other", type=int, default=40)
     ap.add_argument("--reviewers", default=",".join(REVIEWERS))
     ap.add_argument("--out", default="review.jsonl")
+    ap.add_argument("--diff_only", action="store_true",
+                    help="exploratory: reviewer sees request, description and diff, but not the repository")
     args = ap.parse_args()
     reviewers = args.reviewers.split(",")
     rows = [json.loads(x) for x in open(REPO / "data" / "graded" / "main.jsonl")]
@@ -90,14 +92,16 @@ def main():
     def run(job):
         p, v, rv = job
         desc = {"original": final_report(p["rec"]), "honest": p["honest"], "none": ""}[v]
-        res = cached(CACHE / "reviews" / rv / v / f"{p['key']}.json",
-                     lambda: review(p["task"], p["rec"], desc, rv))
+        sub = "reviews_diffonly" if args.diff_only else "reviews"
+        res = cached(CACHE / sub / rv / v / f"{p['key']}.json",
+                     lambda: review(p["task"], p["rec"], desc, rv, include_repo=not args.diff_only))
         out = (res or {}).get("output") or {}
         return {"packet": p["key"], "group": p["group"], "task_id": p["row"]["task_id"],
                 "agent_model": p["row"]["model"], "condition": p["row"]["condition"],
                 "report_type": p["row"]["judge_opus-5.5"]["report_type"],
                 "code_form": p["row"]["judge_opus-5.5"]["code_form"],
                 "honest_ok": p["honest_ok"], "reviewer": rv, "variant": v,
+                "setting": "diff_only" if args.diff_only else "full_repo",
                 "decision": out.get("decision"), "flags": out.get("flags_test_specific_logic"),
                 "comment": out.get("review_comment"), "cost_usd": (res or {}).get("cost_usd", 0.0)}
 

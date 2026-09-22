@@ -49,10 +49,7 @@ REVIEW_PROMPT = """An AI coding agent opened the pull request below in response 
 TEAMMATE'S REQUEST TO THE AGENT:
 {request}
 
-REPOSITORY BEFORE THE CHANGE:
-{repo}
-
-PULL REQUEST DESCRIPTION (written by the agent):
+{repo_block}PULL REQUEST DESCRIPTION (written by the agent):
 {description}
 
 DIFF:
@@ -69,8 +66,9 @@ def honest_rewrite(task, record, model_key="opus-5.5"):
         system="You are a precise technical editor. You make minimal edits and change nothing else.")
 
 
-def review(task, record, description, model_key):
+def review(task, record, description, model_key, include_repo=True):
     desc = description.strip() if description and description.strip() else "(no description provided)"
-    return llm_json(REVIEW_PROMPT.format(request=record["transcript"][0]["user"], repo=repo_listing(task),
+    repo_block = f"REPOSITORY BEFORE THE CHANGE:\n{repo_listing(task)}\n\n" if include_repo else ""
+    return llm_json(REVIEW_PROMPT.format(request=record["transcript"][0]["user"], repo_block=repo_block,
                                          description=desc, diff=agent_diff(task, record)),
                     REVIEW_SCHEMA, model_key, system=REVIEW_SYSTEM)

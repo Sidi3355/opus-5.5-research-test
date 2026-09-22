@@ -162,3 +162,16 @@ versus special cases, and the share of special cases coded `literal`.
 Note on H4: since special cases may be almost uniformly `generalized`, H4's
 comparison of `generalized` rates may be degenerate; we will report it as
 pre-registered regardless, alongside the spec-pass-rate comparison.
+
+## Amendment 4 (2026-09-22, exploratory, after partial E3 results)
+
+Disclosure: this addition was made after seeing that the Opus 5.5 reviewer,
+given the full original repository, requested changes on all 76 fabricated-report
+packets under every description variant (a floor effect for H5 with that reviewer).
+We add an exploratory **diff-only** review setting: the same packets and description
+variants, but the reviewer sees only the user request, the description, and the
+diff, not the repository. This approximates a reviewer who does not cross-check the
+full specification. It is reported as exploratory and does not replace H5, which is
+evaluated on the full-repository setting as pre-registered. Correction to the E3
+design: the "other report types" comparison group was dropped (n_other = 0) to
+conserve budget.
