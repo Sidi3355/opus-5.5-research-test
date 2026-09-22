@@ -133,6 +133,8 @@ def _snapshot(root):
     for p in Path(root).rglob("*"):
         if p.is_file():
             rel = str(p.relative_to(root))
+            if "__pycache__" in rel or rel.endswith(".pyc") or rel.startswith(".pytest_cache"):
+                continue
             try:
                 snap[rel] = p.read_text()
             except UnicodeDecodeError:
@@ -140,7 +142,7 @@ def _snapshot(root):
     return snap
 
 
-def run_trial(cond, model_key, trial_idx, out_path, effort=None, keep_sandbox=False):
+def run_trial(cond, model_key, trial_idx, out_path, effort=None, keep_sandbox=False, followup_fn=None):
     """Run a single trial of a scenario condition and write a JSON record."""
     model_id = MODELS[model_key]
     tid = uuid.uuid4().hex[:6]
@@ -160,7 +162,7 @@ def run_trial(cond, model_key, trial_idx, out_path, effort=None, keep_sandbox=Fa
     initial = _snapshot(sandbox)
 
     mcp_cfg, allowed = None, None
-    tools = FILE_TOOLS if mode == "agentic" else ""
+    tools = FILE_TOOLS if mode == "agentic" and cond.get("scaffold", "claude_code") == "claude_code" else ""
     if cond.get("tools"):
         spec_path = meta / "tools.json"
         spec_path.write_text(json.dumps(cond["tools"]))
@@ -180,8 +182,9 @@ def run_trial(cond, model_key, trial_idx, out_path, effort=None, keep_sandbox=Fa
     total_cost = 0.0
     served = set()
     errors = []
-    for i, user_msg in enumerate(turns):
-        persist = len(turns) > 1
+    def _turn(i, user_msg, phase):
+        nonlocal session_id, total_cost
+        persist = len(turns) > 1 or followup_fn is not None
         stdout, stderr, rc, dt = _cli(user_msg, model_id, cond["system_prompt"], sandbox, tools,
                                       mcp_cfg=mcp_cfg, allowed=allowed, resume=session_id,
                                       persist=persist, effort=effort,
@@ -199,17 +202,36 @@ def run_trial(cond, model_key, trial_idx, out_path, effort=None, keep_sandbox=Fa
             session_id = result.get("session_id")
             total_cost += result.get("total_cost_usd") or 0.0
             served.update(_served_models(result))
-        transcript.append({"user": user_msg, "assistant_texts": texts, "tool_calls": calls,
+        transcript.append({"phase": phase, "user": user_msg, "assistant_texts": texts, "tool_calls": calls,
                            "tool_results": results, "final": (result or {}).get("result"),
                            "num_turns": (result or {}).get("num_turns"), "duration_s": dt,
                            "stop_reason": (result or {}).get("stop_reason"),
                            "terminal_reason": (result or {}).get("terminal_reason"),
+                           "usage": (result or {}).get("usage"),
+                           "model_usage": (result or {}).get("modelUsage"),
+                           "session_id": (result or {}).get("session_id"),
                            "init": init})
-    final = _snapshot(sandbox)
-    diffs = {k: {"before": initial.get(k), "after": v} for k, v in final.items() if initial.get(k) != v}
-    for k in initial:
-        if k not in final:
-            diffs[k] = {"before": initial[k], "after": None}
+
+    def _diffs():
+        final = _snapshot(sandbox)
+        d = {k: {"before": initial.get(k), "after": v} for k, v in final.items() if initial.get(k) != v}
+        for k in initial:
+            if k not in final:
+                d[k] = {"before": initial[k], "after": None}
+        return d
+
+    for i, user_msg in enumerate(turns):
+        _turn(i, user_msg, "task")
+    diffs = _diffs()
+    record["file_diffs"] = diffs
+    record["transcript"] = transcript
+    record["followup"] = None
+    if followup_fn is not None and not errors:
+        fu = followup_fn(record)
+        if fu:
+            record["followup"] = {k: v for k, v in fu.items() if k != "message"}
+            _turn(len(turns), fu["message"], "probe")
+            record["file_diffs_post_probe"] = _diffs()
     tool_log = []
     lp = meta / "tool_log.jsonl"
     if lp.exists():

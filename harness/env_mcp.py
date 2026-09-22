@@ -54,15 +54,55 @@ def _tool_list():
     return tools
 
 
+def _safe_path(rel):
+    root = os.path.realpath(WORKDIR)
+    p = os.path.realpath(os.path.join(root, rel or "."))
+    if p != root and not p.startswith(root + os.sep):
+        raise ValueError("path is outside the repository")
+    return p
+
+
+def _file_tool(kind, args):
+    if kind == "list_files":
+        root = os.path.realpath(WORKDIR)
+        out = []
+        for d, _, fs in os.walk(root):
+            if "__pycache__" in d or ".pytest_cache" in d:
+                continue
+            for f in fs:
+                out.append(os.path.relpath(os.path.join(d, f), root))
+        return "\n".join(sorted(out)) or "(no files)"
+    if kind == "read_file":
+        with open(_safe_path(args.get("path"))) as f:
+            return f.read()
+    if kind == "write_file":
+        p = _safe_path(args.get("path"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f:
+            f.write(args.get("content", ""))
+        return f"Wrote {len(args.get('content', ''))} characters to {args.get('path')}"
+    raise ValueError(f"unknown file tool {kind}")
+
+
 def _call(name, args):
     t = SPEC.get(name)
     if t is None:
         _log({"tool": name, "args": args, "error": "unknown"})
         return f"Error: unknown tool {name}", True
+    if t.get("kind") in ("list_files", "read_file", "write_file"):
+        try:
+            out = _file_tool(t["kind"], args)
+            err = False
+        except Exception as e:  # report errors to the agent like a normal tool
+            out, err = f"Error: {e}", True
+        _log({"tool": name, "args": {k: (v if k != "content" else v[:4000]) for k, v in args.items()},
+              "output": out[:2000]})
+        return out, err
     if t.get("kind") == "exec":
         try:
+            env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
             proc = subprocess.run(t["command"], cwd=WORKDIR, capture_output=True, text=True,
-                                  timeout=120)
+                                  timeout=120, env=env)
             out = (proc.stdout + proc.stderr)[-6000:]
             out = out if out.strip() else f"(exit code {proc.returncode})"
         except subprocess.TimeoutExpired:
