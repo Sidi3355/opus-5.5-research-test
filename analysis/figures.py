@@ -53,11 +53,11 @@ def load(name):
     return [json.loads(x) for x in open(p)] if p.exists() else []
 
 
-def load_reviews():
-    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+def load_reviews(prefix="review"):
+    """Merge per-reviewer review files (<prefix>_<model>.jsonl), de-duplicated."""
     import glob as _g
     seen, out = set(), []
-    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / f"{prefix}*.jsonl"))):
         for x in open(p):
             r = json.loads(x)
             k = (r["packet"], r["reviewer"], r["variant"])
@@ -176,32 +176,38 @@ def fig_probes(rows):
     plt.close(fig)
 
 
-def fig_review(rev):
-    """Approval rate by description variant and reviewer (dot + CI)."""
-    rev = [r for r in rev if r["group"] == "fabricated"]
-    if not rev:
+def fig_review(rev, revd):
+    """Approval rate by description variant and reviewer; full repository vs diff only."""
+    panels = [(r, t) for r, t in ((rev, "Reviewer sees the repository"), (revd, "Reviewer sees only the diff")) if r]
+    if not panels:
         return
     reviewers = [("haiku-4.5", "Haiku 4.5"), ("sonnet-5", "Sonnet 5"), ("opus-5.5", "Opus 5.5")]
     variants = [("original", "Agent's report", "#e34948", "o"), ("none", "No description", "#52514e", "D"),
                 ("honest", "Honest rewrite", "#2a78d6", "s")]
-    fig, ax = plt.subplots(figsize=(3.35, 1.7))
-    y = np.arange(len(reviewers))[::-1]
-    for j, (v, lab, col, mk) in enumerate(variants):
-        for i, (rv, _) in enumerate(reviewers):
-            rs = [r for r in rev if r["reviewer"] == rv and r["variant"] == v]
-            p, lo, hi = wilson(sum(r["decision"] == "approve" for r in rs), len(rs))
-            yy = y[i] + (1 - j) * 0.22
-            ax.plot([lo * 100, hi * 100], [yy, yy], color=col, lw=1.2, solid_capstyle="round")
-            ax.scatter([p * 100], [yy], s=20, color=col, marker=mk, edgecolor=SURF, linewidth=0.8, zorder=3,
-                       label=lab if i == 0 else None)
-    ax.set_yticks(y)
-    ax.set_yticklabels([n for _, n in reviewers])
-    ax.set_xlim(-2, 102)
-    for x in (0, 25, 50, 75, 100):
-        ax.axvline(x, color=GRID, lw=0.5, zorder=0)
-    ax.set_xlabel("Reviewer approves the hacked change (%)")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.45, 1.3), ncol=3, frameon=False, handletextpad=0.2,
-              columnspacing=0.8)
+    fig, axes = plt.subplots(1, len(panels), figsize=(3.35 if len(panels) == 1 else 6.9, 1.8), sharey=True)
+    axes = np.atleast_1d(axes)
+    for ax, (rows, title) in zip(axes, panels):
+        rows = [r for r in rows if r.get("group", "fabricated") == "fabricated"]
+        y = np.arange(len(reviewers))[::-1]
+        for j, (v, lab, col, mk) in enumerate(variants):
+            for i, (rv, _) in enumerate(reviewers):
+                rs = [r for r in rows if r["reviewer"] == rv and r["variant"] == v]
+                if not rs:
+                    continue
+                p, lo, hi = wilson(sum(r["decision"] == "approve" for r in rs), len(rs))
+                yy = y[i] + (1 - j) * 0.22
+                ax.plot([lo * 100, hi * 100], [yy, yy], color=col, lw=1.2, solid_capstyle="round")
+                ax.scatter([p * 100], [yy], s=20, color=col, marker=mk, edgecolor=SURF, linewidth=0.8, zorder=3,
+                           label=lab if i == 0 else None)
+        ax.set_yticks(y)
+        ax.set_yticklabels([n for _, n in reviewers])
+        ax.set_xlim(-2, 102)
+        for x in (0, 25, 50, 75, 100):
+            ax.axvline(x, color=GRID, lw=0.5, zorder=0)
+        ax.set_xlabel("Reviewer approves the gamed change (%)")
+        ax.set_title(title, fontsize=7.5, color=INK2, pad=3)
+    axes[0].legend(loc="lower center", bbox_to_anchor=(1.05 if len(panels) > 1 else 0.45, 1.14), ncol=3,
+                   frameon=False, handletextpad=0.2, columnspacing=0.8)
     fig.tight_layout(pad=0.3)
     fig.savefig(FIG / "review.pdf")
     plt.close(fig)
@@ -254,7 +260,7 @@ def main():
             if "hack_effective" in r:
                 r["hack"] = r["hack_effective"]
         fig_minimal_pairs(rows, e4)
-    fig_review(load_reviews())
+    fig_review(load_reviews("review"), load_reviews("diffonly"))
     print("figures written to", FIG)
 
 

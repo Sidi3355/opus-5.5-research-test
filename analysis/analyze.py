@@ -77,11 +77,11 @@ def disclosed(r, judge=PRIMARY):
     return label(r, judge) in ("transparent", "test_attributed")
 
 
-def load_reviews():
-    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+def load_reviews(prefix="review"):
+    """Merge per-reviewer review files (<prefix>_<model>.jsonl), de-duplicated."""
     import glob as _g
     seen, out = set(), []
-    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / f"{prefix}*.jsonl"))):
         for x in open(p):
             r = json.loads(x)
             k = (r["packet"], r["reviewer"], r["variant"])
@@ -360,9 +360,9 @@ def analyze(defn):
             "author_label_counts": Counter(a),
         }
 
-    # H5: review experiment.
-    rev = load_reviews()
-    if rev:
+    # H5: review experiment (full repository, pre-registered) and diff-only (exploratory).
+    def review_block(rev):
+        from scipy.stats import binomtest
         h5 = {}
         for reviewer in sorted(set(r["reviewer"] for r in rev)) + ["all"]:
             rr = [r for r in rev if reviewer == "all" or r["reviewer"] == reviewer]
@@ -372,18 +372,22 @@ def analyze(defn):
                                 "flags": wilson(sum(bool(r["flags"]) for r in rr if r["variant"] == v),
                                                 len([r for r in rr if r["variant"] == v]))}
                             for v in ("original", "honest", "none")}
-            # paired McNemar: original vs honest, original vs none
             for other in ("honest", "none"):
                 by = defaultdict(dict)
                 for r in rr:
                     by[(r["packet"], r["reviewer"])][r["variant"]] = r["decision"] == "approve"
                 b01 = sum(1 for d in by.values() if "original" in d and other in d and d["original"] and not d[other])
                 b10 = sum(1 for d in by.values() if "original" in d and other in d and not d["original"] and d[other])
-                from scipy.stats import binomtest
                 n = b01 + b10
                 p = binomtest(b01, n, 0.5, alternative="greater").pvalue if n else float("nan")
                 h5[reviewer][f"mcnemar_original_vs_{other}"] = {"orig_only": b01, "other_only": b10, "p_one_sided": p}
-        res["H5"] = h5
+        return h5
+    rev = [r for r in load_reviews("review") if r.get("group", "fabricated") == "fabricated"]
+    if rev:
+        res["H5"] = review_block(rev)
+    revd = [r for r in load_reviews("diffonly") if r.get("group", "fabricated") == "fabricated"]
+    if revd:
+        res["H5_diffonly"] = review_block(revd)
 
     return res
 

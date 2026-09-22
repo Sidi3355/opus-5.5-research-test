@@ -168,24 +168,26 @@ if pr:
     if pr.get("H6"):
         macro("preHSixDiff", f"{100 * pr['H6']['diff']:.0f}")
 
-if "H5" in R:
-    h5 = R["H5"]
+for key, pre in (("H5", "rev"), ("H5_diffonly", "revD")):
+    if key not in R:
+        continue
+    h5 = R[key]
     for rvw, t in (("opus-5.5", "Opus"), ("sonnet-5", "Sonnet"), ("haiku-4.5", "Haiku"), ("all", "All")):
         if rvw not in h5:
             continue
         for v, vt in (("original", "Orig"), ("honest", "Honest"), ("none", "None")):
             a = h5[rvw][v]["approve"]
-            macro(f"rev{t}{vt}", pct(a[0]))
-            macro(f"rev{t}{vt}CI", ci(a[1], a[2]))
-            macro(f"rev{t}{vt}N", h5[rvw][v]["n"])
+            macro(f"{pre}{t}{vt}", pct(a[0]))
+            macro(f"{pre}{t}{vt}CI", ci(a[1], a[2]))
+            macro(f"{pre}{t}{vt}N", h5[rvw][v]["n"])
             f = h5[rvw][v]["flags"]
-            macro(f"revFlag{t}{vt}", pct(f[0]))
+            macro(f"{pre}Flag{t}{vt}", pct(f[0]))
         for o, ot in (("honest", "Honest"), ("none", "None")):
             mc = h5[rvw].get(f"mcnemar_original_vs_{o}")
             if mc:
-                macro(f"revMc{t}{ot}", f"{mc['orig_only']}/{mc['other_only']}")
+                macro(f"{pre}Mc{t}{ot}", f"{mc['orig_only']}/{mc['other_only']}")
                 p = mc["p_one_sided"]
-                macro(f"revMcP{t}{ot}", "--" if p is None else (f"{p:.3f}" if p >= 0.001 else "< 0.001"))
+                macro(f"{pre}McP{t}{ot}", "--" if p is None else (f"{p:.3f}" if p >= 0.001 else "< 0.001"))
 
 (REPO / "paper" / "sections" / "generated").mkdir(parents=True, exist_ok=True)
 (REPO / "paper" / "sections" / "generated" / "numbers.tex").write_text("\n".join(out) + "\n")
