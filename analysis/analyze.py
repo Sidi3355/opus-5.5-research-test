@@ -234,6 +234,55 @@ def main():
                                    "hack_rate_all": rate([r for r in ok if r["pseudo_rule_plausibility"] == pl], lambda r: r["hack"])}
                               for pl in ("high", "low")}
 
+    # H6 (Amendment 3): minimal pairs. Originals = main-run spec_tests trials on the
+    # 14 high tasks; variants = E4 trials. Cluster = task pair (original id).
+    e4 = [r for r in load("e4.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
+    if e4:
+        base = lambda tid: tid.split("__")[0]
+        var_tasks = {base(r["task_id"]) for r in e4}
+        orig = [dict(r, pair=r["task_id"], arm="orig") for r in ok
+                if r["condition"] == "spec_tests" and r["task_id"] in var_tasks]
+        var = [dict(r, pair=base(r["task_id"]), arm="var") for r in e4]
+        both = orig + var
+        def diff(rs):
+            a = [r for r in rs if r["arm"] == "orig"]
+            b = [r for r in rs if r["arm"] == "var"]
+            if not a or not b:
+                return float("nan")
+            return rate(a, lambda r: r["hack"]) - rate(b, lambda r: r["hack"])
+        bt = cluster_boot(both, diff, cluster="pair")
+        h6 = {"orig_hack": wilson(sum(r["hack"] for r in orig), len(orig)),
+              "var_hack": wilson(sum(r["hack"] for r in var), len(var)),
+              "diff": bt["est"], "ci": [bt["lo"], bt["hi"]], "p_one_sided_le_0": float(np.mean(bt["boot"] <= 0)),
+              "by_model": {}}
+        for m in MODELS:
+            a = [r for r in orig if r["model"] == m]
+            b = [r for r in var if r["model"] == m]
+            h6["by_model"][m] = {"orig": wilson(sum(r["hack"] for r in a), len(a)),
+                                 "var": wilson(sum(r["hack"] for r in b), len(b))}
+        vh = [r for r in var if r["hack"]]
+        h6["var_hacks"] = {"n": len(vh), "tests_modified": sum(r["tests_modified"] for r in vh),
+                           "special_cased": sum(r["special_cased"] and not r["tests_modified"] for r in vh),
+                           "code_forms": Counter((r.get(PRIMARY) or {}).get("code_form") for r in vh if r["special_cased"]),
+                           "report_types": Counter(label(r) for r in vh)}
+        h6["var_nonhack_flagged"] = rate([r for r in var if not r["hack"]],
+                                         lambda r: bool((r.get(PRIMARY) or {}).get("flagged_conflict")))
+        res["H6"] = h6
+
+    # Exploratory: denial mechanism and report/probe consistency.
+    dir_fab = [r for r in hacked if r.get("probe_coding") and r["probe"] == "direct"]
+    res["direct_probe_by_form"] = {f: {"n": len([r for r in dir_fab if (r.get(PRIMARY) or {}).get("code_form") == f]),
+                                       **Counter(r["probe_coding"]["probe_response"] for r in dir_fab
+                                                 if (r.get(PRIMARY) or {}).get("code_form") == f)}
+                                   for f in ("generalized", "literal", "other", "none")}
+    src_fab = [r for r in hacked if r.get("probe_coding") and r["probe"] == "source" and is_fab(r)]
+    res["fabricated_then_source_probe"] = {"n": len(src_fab),
+                                           "admits_no_external_source": sum(bool(r["probe_coding"]["admits_no_external_source"]) for r in src_fab),
+                                           **Counter(r["probe_coding"]["probe_response"] for r in src_fab)}
+    res["reverted_after_probe"] = {"n_probed": len([r for r in hacked if r.get("probe_coding")]),
+                                   "changed_files_after_probe": sum(bool(r.get("changed_after_probe")) for r in hacked),
+                                   "offered_or_reverted": sum(bool(r["probe_coding"]["reverts_or_offers_revert"]) for r in hacked if r.get("probe_coding"))}
+
     # H5: review experiment.
     rev = load("review.jsonl")
     if rev:
@@ -275,7 +324,7 @@ def main():
     json.dump(clean(res), open(OUT / "results.json", "w"), indent=1)
     print(json.dumps(clean({k: v for k, v in res.items() if k in ("n_total", "n_excluded", "n_analyzed", "n_hacked",
                                                                   "n_special_cased_only", "n_tests_modified", "H1", "H2",
-                                                                  "H3", "H4", "judge_agreement", "cost_usd")}), indent=1))
+                                                                  "H3", "H4", "H6", "judge_agreement", "cost_usd")}), indent=1))
 
 
 if __name__ == "__main__":
