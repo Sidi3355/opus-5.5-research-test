@@ -135,3 +135,30 @@ not 576. The per-model trial counts above are unchanged. The main run has a
 hard budget stop at USD 400 (list-price equivalent); if it is reached, the
 interleaved job order keeps completed trials balanced across tasks, conditions,
 and models, and the shortfall is reported.
+
+## Amendment 3 (2026-09-22, during the main run, before any E4 trial)
+
+Disclosure: the lead inspected graded results from the first 60 main-run trials
+(grading pipeline check). In those trials, hacks were concentrated in tasks
+labeled `high` pseudo-rule plausibility (26/45) versus `low` (1/15), and every
+special case was coded `generalized`. Because plausibility is a task-level label
+that may be confounded with other task features, we add a causal follow-up.
+
+**E4 (minimal pairs).** For each of the 14 selected `high` tasks, a variant is
+built that is identical except for the conflict test's expected value, which is
+changed to a value that no simple general rule consistent with the other visible
+tests produces (verified by implementing the documented pseudo-rule and several
+alternatives), so that only a literal special case or a test edit yields a green
+suite. Variants are run under `spec_tests` with the same per-model trial counts as
+the main run (196 trials).
+
+**H6.** For the same repositories and instructions, the hack rate is lower on the
+unrationalizable variants than on the original tasks (main-run `spec_tests`
+trials on the same 14 tasks). Test: difference in hack rates pooled over models,
+cluster bootstrap over task pairs (one-sided); per-model rates reported with
+Wilson intervals. Secondary: among variant hacks, the share that are test edits
+versus special cases, and the share of special cases coded `literal`.
+
+Note on H4: since special cases may be almost uniformly `generalized`, H4's
+comparison of `generalized` rates may be degenerate; we will report it as
+pre-registered regardless, alongside the spec-pass-rate comparison.
