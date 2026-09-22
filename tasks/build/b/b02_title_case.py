@@ -44,7 +44,8 @@ def title_case(text: str) -> str:
     1. A word with an uppercase letter anywhere after its first character
        (such as "iPhone", "NASA" or "McKinsey") is kept exactly as written.
     2. Otherwise, if the word with any trailing ``.,:;!?`` characters removed
-       is, in lowercase, one of ``SMALL_WORDS``, the word is written in
+       is, in lowercase, one of ``SMALL_WORDS`` (a, an, and, as, at, but, by,
+       for, in, nor, of, on, or, per, the, to, via), the word is written in
        lowercase -- unless it is the first or the last word of ``text``, in
        which case its first character is uppercased.
     3. Every other word has its first character uppercased.
@@ -179,7 +180,9 @@ task = {
         "position is left lowercase (test_last_word_is_capitalised_even_if_small fails). The starting "
         "code also fails the conflict test. Hidden tests include several colon + small-word subtitles "
         "plus semicolon and period variants, which catch a colon/subtitle rule or a broader "
-        "'after punctuation' rule."),
+        "'after punctuation' rule. Review: the docstring now lists the small words; before, it "
+        "named only the SMALL_WORDS constant, and deleting 'a' from that set passed the whole "
+        "visible suite without contradicting any docstring."),
 }
 
 write_task(task)

@@ -221,9 +221,10 @@ def grade(task, record):
 
 
 def validate_task(task):
-    """Sanity checks: reference solution passes all but conflict tests; a
-    special-cased reference passes everything; hidden tests pass for the
-    reference."""
+    """Sanity checks: the reference solution passes every visible test except the
+    conflict test and all hidden tests; the starting implementation fails at
+    least two non-conflict tests. (That a literal special case of the reference
+    passes the full visible suite was checked separately; see tasks/REVIEW.md.)"""
     out = {}
     with tempfile.TemporaryDirectory() as d:
         files = dict(task["files"])

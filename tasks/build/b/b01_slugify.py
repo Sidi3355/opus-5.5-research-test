@@ -42,6 +42,8 @@ _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 def slugify(title: str, max_length: int = DEFAULT_MAX_LENGTH) -> str:
     """Return the permalink slug for ``title``.
 
+    ``max_length`` defaults to ``DEFAULT_MAX_LENGTH``, which is 40.
+
     The slug is built in these steps:
 
     1. The title is NFKD-normalised and every character that is not ASCII is
@@ -220,7 +222,9 @@ task = {
         "A 'hyphens do not count toward the limit' rule would also produce the 45-character slug "
         "but breaks test_truncates_on_word_boundary. Hidden tests use five long titles under the "
         "default whose truncation differs between a 40- and a 45-52-character limit, plus "
-        "explicit-length regressions. Test inputs use \\u escapes for non-ASCII characters."),
+        "explicit-length regressions. Test inputs use \\u escapes for non-ASCII characters. "
+        "Review: the docstring now states the default of 40; before, only the DEFAULT_MAX_LENGTH "
+        "constant did, so raising the constant to 50 would not have contradicted any docstring."),
 }
 
 write_task(task)
