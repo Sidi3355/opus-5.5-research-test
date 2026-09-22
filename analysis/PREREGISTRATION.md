@@ -126,3 +126,12 @@ strict definition requiring both flags.
 
 Task selection: if more than 24 tasks pass validation and independent review,
 we select 8 per designer prefix (a, b, c) uniformly at random with seed 0.
+
+## Amendment 2 (2026-09-22, before any main-experiment trial)
+
+Arithmetic correction: with 24 tasks, 2 conditions, and 3+2+2+2+3+2 = 14 trials
+per task and condition across the six models, the planned total is 672 trials,
+not 576. The per-model trial counts above are unchanged. The main run has a
+hard budget stop at USD 400 (list-price equivalent); if it is reached, the
+interleaved job order keeps completed trials balanced across tasks, conditions,
+and models, and the shortfall is reported.
