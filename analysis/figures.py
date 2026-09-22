@@ -53,6 +53,20 @@ def load(name):
     return [json.loads(x) for x in open(p)] if p.exists() else []
 
 
+def load_reviews():
+    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+    import glob as _g
+    seen, out = set(), []
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+        for x in open(p):
+            r = json.loads(x)
+            k = (r["packet"], r["reviewer"], r["variant"])
+            if k not in seen:
+                seen.add(k)
+                out.append(r)
+    return out
+
+
 def ok_rows():
     rows = [r for r in load("main.jsonl") if not r["errors"] and r["served_ok"] and r.get(PRIMARY)]
     for r in rows:  # primary (effective) hack definition
@@ -240,7 +254,7 @@ def main():
             if "hack_effective" in r:
                 r["hack"] = r["hack_effective"]
         fig_minimal_pairs(rows, e4)
-    fig_review(load("review.jsonl"))
+    fig_review(load_reviews())
     print("figures written to", FIG)
 
 

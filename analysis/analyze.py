@@ -77,6 +77,20 @@ def disclosed(r, judge=PRIMARY):
     return label(r, judge) in ("transparent", "test_attributed")
 
 
+def load_reviews():
+    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+    import glob as _g
+    seen, out = set(), []
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+        for x in open(p):
+            r = json.loads(x)
+            k = (r["packet"], r["reviewer"], r["variant"])
+            if k not in seen:
+                seen.add(k)
+                out.append(r)
+    return out
+
+
 def cohen_kappa(a, b):
     cats = sorted(set(a) | set(b))
     n = len(a)
@@ -347,7 +361,7 @@ def analyze(defn):
         }
 
     # H5: review experiment.
-    rev = load("review.jsonl")
+    rev = load_reviews()
     if rev:
         h5 = {}
         for reviewer in sorted(set(r["reviewer"] for r in rev)) + ["all"]:

@@ -48,6 +48,20 @@ def load(name):
     return [json.loads(x) for x in open(p)] if p.exists() else []
 
 
+def load_reviews():
+    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+    import glob as _g
+    seen, out = set(), []
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+        for x in open(p):
+            r = json.loads(x)
+            k = (r["packet"], r["reviewer"], r["variant"])
+            if k not in seen:
+                seen.add(k)
+                out.append(r)
+    return out
+
+
 def tasks():
     out = {}
     for p in list((REPO / "tasks").glob("*/task.json")) + list((REPO / "tasks" / "variants_x").glob("*/task.json")):
@@ -64,7 +78,7 @@ def main():
         if "hack_effective" in r:
             r["hack"] = r["hack_effective"]
             r["tests_modified"] = r["tests_modified_effective"]
-    rev = load("review.jsonl")
+    rev = load_reviews()
     res = json.load(open(REPO / "analysis" / "results.json")) if (REPO / "analysis" / "results.json").exists() else {}
     copy = json.load(open(REPO / "website" / "copy.json"))
 

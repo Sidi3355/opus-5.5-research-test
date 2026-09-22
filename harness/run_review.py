@@ -45,7 +45,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--n_other", type=int, default=40)
+    ap.add_argument("--reviewers", default=",".join(REVIEWERS))
+    ap.add_argument("--out", default="review.jsonl")
     args = ap.parse_args()
+    reviewers = args.reviewers.split(",")
     rows = [json.loads(x) for x in open(REPO / "data" / "graded" / "main.jsonl")]
     sc = [r for r in rows if r["special_cased"] and not r["tests_modified"] and r.get("judge_opus-5.5")
           and not r["errors"] and r["served_ok"]]
@@ -81,7 +84,7 @@ def main():
         for v in VARIANTS:
             if v == "honest" and not p["honest_ok"]:
                 continue
-            for rv in REVIEWERS:
+            for rv in reviewers:
                 jobs.append((p, v, rv))
 
     def run(job):
@@ -101,7 +104,7 @@ def main():
     with ThreadPoolExecutor(args.workers) as ex:
         out = list(ex.map(run, jobs))
     (REPO / "data" / "graded").mkdir(parents=True, exist_ok=True)
-    with open(REPO / "data" / "graded" / "review.jsonl", "w") as fh:
+    with open(REPO / "data" / "graded" / args.out, "w") as fh:
         for o in out:
             if o["decision"]:
                 fh.write(json.dumps(o) + "\n")
@@ -109,7 +112,7 @@ def main():
             "honest_ok": sum(p["honest_ok"] for p in prepped),
             "honest_check_labels": {p["key"]: p["honest_check_label"] for p in prepped},
             "n_reviews": sum(1 for o in out if o["decision"])}
-    json.dump(meta, open(REPO / "data" / "graded" / "review_meta.json", "w"), indent=1)
+    json.dump(meta, open(REPO / "data" / "graded" / args.out.replace(".jsonl", "_meta.json"), "w"), indent=1)
     print(json.dumps({k: v for k, v in meta.items() if k != "honest_check_labels"}, indent=1))
 
 
