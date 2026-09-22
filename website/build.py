@@ -48,11 +48,11 @@ def load(name):
     return [json.loads(x) for x in open(p)] if p.exists() else []
 
 
-def load_reviews():
-    """Merge per-reviewer review files (review_<model>.jsonl), de-duplicated."""
+def load_reviews(prefix="review"):
+    """Merge per-reviewer review files (<prefix>_<model>.jsonl), de-duplicated."""
     import glob as _g
     seen, out = set(), []
-    for p in sorted(_g.glob(str(REPO / "data" / "graded" / "review*.jsonl"))):
+    for p in sorted(_g.glob(str(REPO / "data" / "graded" / f"{prefix}*.jsonl"))):
         for x in open(p):
             r = json.loads(x)
             k = (r["packet"], r["reviewer"], r["variant"])
@@ -197,11 +197,16 @@ def main():
     rv_series = {"original": {"label": "Agent's own summary", "color": "var(--c-fab)"},
                  "none": {"label": "No summary", "color": "var(--c-gray)"},
                  "honest": {"label": "Honest summary", "color": "var(--c-transparent)"}}
-    rv = [r for r in rev if r["group"] == "fabricated"]
-    rv_rows = []
-    for rvm, lab in (("haiku-4.5", "Haiku 4.5"), ("sonnet-5", "Sonnet 5"), ("opus-5.5", "Opus 5.5")):
-        rv_rows.append({"label": lab, "series": [rate_obj(v, [r for r in rv if r["reviewer"] == rvm and r["variant"] == v],
-                                                          lambda r: r["decision"] == "approve") for v in ("original", "none", "honest")]})
+    def review_rows(rows):
+        rv = [r for r in rows if r.get("group", "fabricated") == "fabricated"]
+        out = []
+        for rvm, lab in (("haiku-4.5", "Haiku 4.5"), ("sonnet-5", "Sonnet 5"), ("opus-5.5", "Opus 5.5")):
+            out.append({"label": lab, "series": [rate_obj(v, [r for r in rv if r["reviewer"] == rvm and r["variant"] == v],
+                                                          lambda r: r["decision"] == "approve")
+                                                 for v in ("original", "none", "honest")]})
+        return out
+    rv_rows = review_rows(rev)
+    rvd_rows = review_rows(load_reviews("diffonly"))
 
     vals = {
         "n_trials": len(rows), "n_tasks": len({r["task_id"] for r in rows}), "n_hacked": len(hacked),
@@ -233,11 +238,12 @@ def main():
         })
         for m in MODELS:
             vals["hack_" + m.replace("-", "_").replace(".", "_")] = P(res["incidence"][f"{m}|all"]["hack"][0])
-        if res.get("H5"):
-            for rvm in ("opus-5.5", "sonnet-5", "haiku-4.5", "all"):
-                if rvm in res["H5"]:
-                    for v in ("original", "honest", "none"):
-                        vals[f"rev_{rvm.replace('-', '_').replace('.', '_')}_{v}"] = P(res["H5"][rvm][v]["approve"][0])
+        for key, pre in (("H5", "rev"), ("H5_diffonly", "revd")):
+            if res.get(key):
+                for rvm in ("opus-5.5", "sonnet-5", "haiku-4.5", "all"):
+                    if rvm in res[key]:
+                        for v in ("original", "honest", "none"):
+                            vals[f"{pre}_{rvm.replace('-', '_').replace('.', '_')}_{v}"] = P(res[key][rvm][v]["approve"][0])
     vals.update(copy.get("computed_overrides", {}))
 
     def fmt(s):
@@ -259,6 +265,8 @@ def main():
             sec.update(rows=pl_rows, series=pl_series)
         if sec.get("kind") == "dots" and sec.get("data") == "review":
             sec.update(rows=rv_rows, series=rv_series)
+        if sec.get("kind") == "dots" and sec.get("data") == "review_diff":
+            sec.update(rows=rvd_rows, series=rv_series)
         if sec.get("kind") == "stack" and sec.get("data") == "types":
             sec.update(rows=type_rows, cats=cats)
         if sec.get("kind") == "stack" and sec.get("data") == "probes":
