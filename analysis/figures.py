@@ -206,9 +206,12 @@ def fig_review(rev, revd):
             ax.axvline(x, color=GRID, lw=0.5, zorder=0)
         ax.set_xlabel("Reviewer approves the gamed change (%)")
         ax.set_title(title, fontsize=7.5, color=INK2, pad=3)
-    axes[0].legend(loc="lower center", bbox_to_anchor=(1.05 if len(panels) > 1 else 0.45, 1.14), ncol=3,
-                   frameon=False, handletextpad=0.2, columnspacing=0.8)
-    fig.tight_layout(pad=0.3)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.tight_layout(pad=0.3, rect=(0, 0, 1, 0.86))
+    if len(panels) > 1:
+        fig.subplots_adjust(wspace=0.06)
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.0), ncol=3,
+               frameon=False, handletextpad=0.2, columnspacing=0.8)
     fig.savefig(FIG / "review.pdf")
     plt.close(fig)
 

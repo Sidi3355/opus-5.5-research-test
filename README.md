@@ -1,4 +1,4 @@
-# Per the Spec: Coding Agents Invent Requirements to Justify Gaming Their Tests
+# Per the Spec: Coding Agents Cite Invented Requirements When They Game Their Tests
 
 When a test contradicts the specification, AI coding agents often make it pass by
 adopting a rule under which the test is right, writing that rule as ordinary code,
@@ -36,7 +36,7 @@ ran in the Claude Code CLI on 24 impossible-test repositories. Final numbers are
 | `analysis/PREREGISTRATION.md` | Pre-registration and dated amendments (committed before main data) |
 | `analysis/analyze.py` | All confirmatory and exploratory statistics -> `results.json` |
 | `analysis/figures.py`, `make_numbers.py`, `make_tables.py` | Paper figures, LaTeX number macros, appendix tables and verbatim examples |
-| `analysis/validation/` | Blinded author labels for judge validation |
+| `analysis/validation/` | Blinded validation sheet and labels (coded by the lead agent, not a human) |
 | `data/main/`, `data/e4/` | Every trial record (transcript, tool calls, file diffs, probe) |
 | `data/judgments/`, `data/review/`, `data/graded/` | Judge outputs, review outputs, per-trial graded rows |
 | `paper/` | Shared sections plus ICLR 2027, ICML 2026, NeurIPS 2026, and arXiv wrappers (`make` builds all) |
@@ -50,7 +50,9 @@ python3 harness/run_main.py --workers 12 --budget 400                  # main ex
 python3 harness/run_main.py --tasks "tasks/variants_x/*/task.json" \
         --out data/e4 --conditions spec_tests --budget 110              # minimal pairs
 python3 harness/grade_all.py && python3 harness/grade_all.py --data data/e4 --name e4
-python3 harness/run_review.py --n_other 0                              # review experiment
+python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --out review_opus-5.5.jsonl   # review experiment (repeat per reviewer)
+python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --diff_only --out diffonly_opus-5.5.jsonl
+python3 analysis/collateral.py && python3 analysis/collateral.py --data e4.jsonl   # hidden tests on other inputs
 python3 analysis/analyze.py && python3 analysis/make_numbers.py && python3 analysis/make_tables.py
 python3 analysis/figures.py && (cd paper && make)
 python3 website/build.py

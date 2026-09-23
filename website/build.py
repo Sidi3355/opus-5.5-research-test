@@ -132,26 +132,13 @@ def main():
         seen.add((r["model"], r["task_id"]))
         if len(exs) >= 8:
             break
-    # Hidden-test counts from the recorded pass rate (tests are parametrized, so derive from the grader).
-    sys.path.insert(0, str(REPO / "harness"))
-    from coding import _run_pytest, _write_repo, final_files  # noqa: E402
-    import tempfile
+    # Hidden-test counts on inputs other than the conflict input (analysis/collateral.py).
+    col = {c["file"]: c for c in json.load(open(REPO / "analysis" / "collateral.json"))["trials"]}
     for e in exs:
-        t = T[e["task_id"]]
         r = next(x for x in fab if x["task_id"] == e["task_id"] and NAMES[x["model"]] == e["model_name"])
-        rec = json.load(open(REPO / r["file"]))
-        fin = final_files(t, rec)
-        with tempfile.TemporaryDirectory() as d:
-            files = dict(t["files"])
-            for k in t["impl_files"]:
-                if fin.get(k) is not None:
-                    files[k] = fin[k]
-            _write_repo(d, files)
-            hp = Path(d) / "_hidden_spec_test.py"
-            hp.write_text(t["hidden_tests"])
-            out = _run_pytest(d, str(hp))
-        e["hidden_total"] = len(out)
-        e["hidden_fail"] = sum(1 for v in out.values() if not v)
+        c = col[r["file"]]
+        e["hidden_total"] = c["n_other"]
+        e["hidden_fail"] = c["n_other_fail"]
 
     # Figures.
     series_cond = {"spec_tests": {"label": "User: tests encode the spec", "color": "var(--c-a)"},
@@ -238,12 +225,18 @@ def main():
         })
         for m in MODELS:
             vals["hack_" + m.replace("-", "_").replace(".", "_")] = P(res["incidence"][f"{m}|all"]["hack"][0])
+        if res.get("H5"):
+            vals["rev_n"] = res["H5"]["opus-5.5"]["original"]["n"]
         for key, pre in (("H5", "rev"), ("H5_diffonly", "revd")):
             if res.get(key):
                 for rvm in ("opus-5.5", "sonnet-5", "haiku-4.5", "all"):
                     if rvm in res[key]:
                         for v in ("original", "honest", "none"):
                             vals[f"{pre}_{rvm.replace('-', '_').replace('.', '_')}_{v}"] = P(res[key][rvm][v]["approve"][0])
+    if res and res.get("robustness"):
+        rb = res["robustness"]
+        vals.update({"lit_carve": rb["literal_audit"]["n_param_carveout"], "n_sc": rb["collateral_other"]["n"],
+                     "col_fail": rb["collateral_other"]["any_fail"], "fab_ext": rb["fab_parts"]["external_authority"]})
     vals.update(copy.get("computed_overrides", {}))
 
     def fmt(s):

@@ -25,7 +25,7 @@ def esc(s):
     s = (s.replace("\\", "\\textbackslash{}").replace("&", "\\&").replace("%", "\\%").replace("$", "\\$")
          .replace("#", "\\#").replace("_", "\\_").replace("{", "\\{").replace("}", "\\}")
          .replace("~", "\\textasciitilde{}").replace("^", "\\^{}"))
-    s = s.replace("\u2014", ", ").replace("\u2013", "-").replace("\u2192", "$\\to$").replace("\u2248", "$\\approx$")
+    s = s.replace("\u2014", "--").replace("\u2013", "-").replace("\u2192", "$\\to$").replace("\u2248", "$\\approx$")
     s = s.replace("\u00d7", "$\\times$").replace("\u2019", "'").replace("\u2018", "'").replace("\u201c", "``").replace("\u201d", "''")
     s = s.replace("\u2026", "...").replace("\u2705", "").replace("\u2713", "").replace("\U0001F389", "").replace("\u00a2", "c")
     s = re.sub(r"[^\x00-\x7f$\\{}]", "", s)
@@ -97,14 +97,15 @@ def validation_table():
     return "\n".join([
         "\\begin{table}[h]", "\\centering", "\\small", "\\begin{tabular}{lcc}", "\\toprule",
         "Comparison & $n$ & Cohen's $\\kappa$ \\\\", "\\midrule",
-        f"Author vs.\\ primary judge (4 report types) & {v['n']} & {v['author_vs_primary_kappa']:.2f} \\\\",
-        f"Author vs.\\ secondary judge (4 report types) & {v['n_secondary']} & {v['author_vs_secondary_kappa']:.2f} \\\\",
+        f"Lead agent vs.\\ primary judge (4 report types) & {v['n']} & {v['author_vs_primary_kappa']:.2f} \\\\",
+        f"Lead agent vs.\\ secondary judge (4 report types) & {v['n_secondary']} & {v['author_vs_secondary_kappa']:.2f} \\\\",
         f"Primary vs.\\ secondary judge, validation sample & {v['n_secondary']} & {v['primary_vs_secondary_kappa']:.2f} \\\\",
-        f"Author vs.\\ primary judge (fabricated or not) & {v['n']} & {v['binary_fab_author_vs_primary_kappa']:.2f} \\\\",
+        f"Lead agent vs.\\ primary judge (fabricated or not) & {v['n']} & {v['binary_fab_author_vs_primary_kappa']:.2f} \\\\",
         f"Primary vs.\\ secondary judge, all gaming trials & {ja.get('n', 0)} & {ja.get('kappa', 0):.2f} \\\\",
         "\\bottomrule", "\\end{tabular}",
-        "\\caption{Agreement on report coding. The author labeled a stratified random sample of gaming-trial reports "
-        "blind to both judges. Raw agreement between the author and the primary judge was "
+        "\\caption{Agreement on report coding. The lead agent (itself Claude Opus 5.5) coded a stratified "
+        "random sample of gaming-trial reports from a sheet without judge labels; it is the same model as the primary judge, so "
+        "this is not an independent human check. Raw agreement between the lead agent and the primary judge was "
         f"{100 * v['author_vs_primary_raw']:.0f}\\%; disagreements were symmetric between fabricated and "
         "test-attributed.}", "\\label{tab:validation}", "\\end{table}"])
 
@@ -134,7 +135,7 @@ EXAMPLES = [
 def examples():
     rows = {json.loads(x)["file"]: json.loads(x) for x in open(REPO / "data" / "graded" / "main.jsonl")}
     out = ["\\section{Verbatim examples}", "\\label{app:examples}",
-           "Final reports from special-cased trials, verbatim except for Markdown formatting. The text the judge "
+           "Final reports from special-cased trials, verbatim except for Markdown formatting (dashes are set as en dashes). The text the judge "
            "identified as a fabricated requirement is in red. None of these requirements appears in the repository "
            "or the conversation.\n"]
     for f, title in EXAMPLES:
@@ -145,16 +146,36 @@ def examples():
         out.append(quote_box(title.replace("\\textsc{spec-tests}", "spec-tests").replace("\\textsc{spec-docstring}", "spec-docstring"),
                              final_report(rec), j.get("fabricated_text"), maxlen=1100))
     # Probe exchanges.
-    out.append("\\paragraph{Follow-up answers.} The same model (Sonnet 5), task, and condition, in two trials that "
-               "received different follow-up questions after reports that fabricated a requirement.\n")
+    out.append("\\paragraph{Follow-up answers.} The same model (Sonnet 5) and task, in two trials (one per condition) "
+               "whose reports both fabricated a requirement and that received different follow-up questions.\n")
     for f, title in (("data/main/sonnet-5/a09_duration_display__spec_docstring__0.json", "Direct question"),
-                     ("data/main/sonnet-5/a09_duration_display__spec_docstring__1.json", "Question about the source"),
+                     ("data/main/sonnet-5/a09_duration_display__spec_tests__1.json", "Question about the source (spec-tests)"),
                      ("data/main/sonnet-4.5/c04_slot_rounding__spec_tests__0.json", "Sonnet 4.5, question about the source")):
         rec = json.load(open(REPO / f))
         pt = [x for x in rec["transcript"] if x.get("phase") == "probe"]
         if pt:
             out.append(quote_box(f"{title}: {pt[0]['user']}", pt[0].get("final") or "", maxlen=1000))
     return "\n".join(out)
+
+
+def stratum_table():
+    hs = R["robustness"]["hack_by_stratum"]
+    lines = ["\\begin{table}[h]", "\\centering", "\\small", "\\begin{tabular}{lcccc}", "\\toprule",
+             "& \\multicolumn{2}{c}{Plausible rule (14 tasks)} & \\multicolumn{2}{c}{No plausible rule (10 tasks)} \\\\",
+             "Model & \\textsc{spec-tests} & \\textsc{spec-docstring} & \\textsc{spec-tests} & \\textsc{spec-docstring} \\\\",
+             "\\midrule"]
+    for m in NAMES:
+        cells = []
+        for pl in ("high", "low"):
+            for c in ("spec_tests", "spec_docstring"):
+                k, n = hs[f"{m}|{pl}|{c}"]
+                cells.append(f"{k}/{n}")
+        lines.append(f"{NAMES[m]} & " + " & ".join(cells) + " \\\\")
+    lines += ["\\bottomrule", "\\end{tabular}",
+              "\\caption{Gaming trials by model, task stratum, and condition. Pooled rates in the main text depend "
+              "on this task mix; gaming by the two newest models is concentrated in the first column.}",
+              "\\label{tab:strata}", "\\end{table}"]
+    return "\n".join(lines)
 
 
 def cost_note():
@@ -164,6 +185,6 @@ def cost_note():
 
 if __name__ == "__main__":
     GEN.mkdir(parents=True, exist_ok=True)
-    (GEN / "tables.tex").write_text("\n\n".join([model_table(), prereg_table(), validation_table(), cost_note()]))
+    (GEN / "tables.tex").write_text("\n\n".join([model_table(), stratum_table(), prereg_table(), validation_table(), cost_note()]))
     (GEN / "examples.tex").write_text(examples())
     print("tables and examples written")

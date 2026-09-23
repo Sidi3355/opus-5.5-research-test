@@ -175,3 +175,15 @@ full specification. It is reported as exploratory and does not replace H5, which
 evaluated on the full-repository setting as pre-registered. Correction to the E3
 design: the "other report types" comparison group was dropped (n_other = 0) to
 conserve budget.
+
+## Amendment 5 (2026-09-23, analysis only, after partial E3 results)
+
+Disclosure: written after seeing interim E3 results. (1) The pooled H5 model is fit
+as a logistic GEE (approval on description variant and reviewer, exchangeable
+correlation within diff packets, robust standard errors) rather than a logistic
+model with packet random effects, because the available mixed-model implementation
+for binary outcomes is variational Bayes only. Both target the same contrast; the
+per-reviewer exact McNemar tests remain the primary H5 tests. (2) Some reviewer calls
+for Sonnet 5 and Haiku 4.5 failed when the API usage limit was reached; they were
+re-run with identical prompts once the limit reset, and no reviews were discarded.
+The diff-only setting uses the same model and the same GEE.

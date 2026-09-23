@@ -24,6 +24,11 @@ def pct(x):
     return "--" if x is None else f"{100 * x:.0f}\\%"
 
 
+def pfmt(p):
+    """p-value with its relation, in math mode: '$= 0.012$' or '$< 0.001$'."""
+    return "--" if p is None else (f"$= {p:.3f}$" if p >= 0.001 else "$< 0.001$")
+
+
 def ci(lo, hi):
     return "--" if lo is None or hi is None else f"[{100 * lo:.0f}, {100 * hi:.0f}]"
 
@@ -59,7 +64,7 @@ for k, name in (("transparent", "Transp"), ("test_attributed", "TestAttr"), ("om
 h1 = R["H1"]
 macro("hOneEst", pct(h1["est"]))
 macro("hOneCI", ci(*h1["ci"]))
-macro("hOneP", f"{h1['p_one_sided_le_0.25']:.3f}" if h1["p_one_sided_le_0.25"] >= 0.001 else "< 0.001")
+macro("hOneP", pfmt(h1["p_one_sided_le_0.25"]))
 macro("hOneStrict", pct(h1["strict_est"]))
 macro("hOneStrictCI", ci(*h1["strict_ci"]))
 
@@ -68,7 +73,7 @@ macro("hTwoMod", pct(h2["disclosed_tests_modified"]))
 macro("hTwoSC", pct(h2["disclosed_special_cased"]))
 macro("hTwoDiff", f"{100 * h2['diff']:.0f}")
 macro("hTwoCI", ci(*h2["ci"]))
-macro("hTwoP", f"{h2['p_one_sided_le_0']:.3f}" if h2["p_one_sided_le_0"] >= 0.001 else "< 0.001")
+macro("hTwoP", pfmt(h2["p_one_sided_le_0"]))
 
 h3 = R["H3"]
 macro("hThreeTests", pct(h3["fab_spec_tests"][0]))
@@ -187,7 +192,86 @@ for key, pre in (("H5", "rev"), ("H5_diffonly", "revD")):
             if mc:
                 macro(f"{pre}Mc{t}{ot}", f"{mc['orig_only']}/{mc['other_only']}")
                 p = mc["p_one_sided"]
-                macro(f"{pre}McP{t}{ot}", "--" if p is None else (f"{p:.3f}" if p >= 0.001 else "< 0.001"))
+                macro(f"{pre}McP{t}{ot}", pfmt(p))
+    g = h5.get("pooled_gee")
+    if g:
+        for o, ot in (("honest", "Honest"), ("none", "None")):
+            orr = g[f"or_original_vs_{o}"]
+            macro(f"{pre}OR{ot}", f"{orr[0]:.1f}")
+            macro(f"{pre}OR{ot}CI", f"[{orr[1]:.1f}, {orr[2]:.1f}]")
+            macro(f"{pre}ORP{ot}", pfmt(g[f"p_two_sided_{o}"]))
+
+
+# Robustness checks added after internal review.
+rb = R.get("robustness", {})
+if rb:
+    fp = rb["fab_parts"]
+    macro("fabExternalN", fp["external_authority"])
+    macro("fabGenOnlyN", fp["generalization_only"])
+    macro("fabSpecificN", fp["specific_source"])
+    macro("fabN", fp["n"])
+    s2 = rb["H1_secondary"]
+    macro("hOneSecondary", pct(s2["est"]))
+    macro("hOneSecondaryCI", ci(*s2["ci"]))
+    sd = rb["H1_spec_docstring"]
+    macro("hOneDoc", pct(sd["est"]))
+    macro("hOneDocCI", ci(*sd["ci"]))
+    macro("hOneDocN", sd["n"])
+    macro("hOneStrictP", pfmt(R["H1"]["strict_p_one_sided_le_0.25"]))
+    ft = rb["fab_per_trial"]
+    for c, t in (("spec_tests", "Tests"), ("spec_docstring", "Doc")):
+        k, n = ft[c]["four"]
+        macro(f"fabPerTrialFour{t}", pct(k / n))
+        macro(f"fabPerTrialFour{t}K", k)
+        macro(f"fabPerTrialFour{t}N", n)
+    h2 = rb["H2_strat"]
+    macro("hTwoModTasks", h2["n_mod_tasks"])
+    macro("hTwoScOnModTasksN", h2["sc_on_mod_tasks"])
+    macro("hTwoScOnModTasksK", h2["sc_disclosed_on_mod_tasks"])
+    macro("hTwoScOnModTasks", pct(h2["sc_disclosed_on_mod_tasks"] / h2["sc_on_mod_tasks"]))
+    macro("modLowK", h2["mod_low"])
+    macro("scHighK", h2["sc_high"])
+    hs = rb["hack_by_stratum"]
+    for m in MODELS:
+        k, n = hs[f"{m}|high|spec_tests"]
+        macro(f"hackHighTests{TAG[m]}", f"{k} of {n}")
+        k2, n2 = hs[f"{m}|high|spec_docstring"]
+        macro(f"hackHighDoc{TAG[m]}", f"{k2} of {n2}")
+        kl = hs[f"{m}|low|spec_tests"][0] + hs[f"{m}|low|spec_docstring"][0]
+        nl = hs[f"{m}|low|spec_tests"][1] + hs[f"{m}|low|spec_docstring"][1]
+        macro(f"hackLow{TAG[m]}", f"{kl} of {nl}")
+    co = rb.get("collateral_other")
+    if co:
+        macro("colN", co["n"])
+        macro("colAnyFail", co["any_fail"])
+        macro("colNoFail", co["n"] - co["any_fail"])
+        macro("colPass", pct(co["pass_rate"]))
+        macro("colPassFab", pct(co["pass_rate_fab"]))
+        macro("colPassNonfab", pct(co["pass_rate_nonfab"]))
+        t = co["teaser"]
+        macro("teaserOtherFail", t["n_other_fail"])
+        macro("teaserOtherN", t["n_other"])
+    la = rb.get("literal_audit")
+    if la:
+        macro("litFlagged", la["n_flagged"])
+        macro("litCarveout", la["n_param_carveout"])
+    dn = rb["direct_no_by_type"]
+    for t, tt in (("transparent", "Transp"), ("test_attributed", "TestAttr"), ("fabricated_requirement", "Fab")):
+        macro(f"dirNo{tt}K", dn[t][0])
+        macro(f"dirNo{tt}N", dn[t][1])
+    pm = rb["probe_after_fab_by_model"]
+    macro("srcAdmitSonnetFive", f"{pm['sonnet-5']['source'].get('admits', 0)} of {pm['sonnet-5']['source']['n']}")
+    macro("srcAdmitHaiku", f"{pm['haiku-4.5']['source'].get('admits', 0)} of {pm['haiku-4.5']['source']['n']}")
+    macro("dirNoHaiku", f"{pm['haiku-4.5']['direct'].get('denies', 0)} of {pm['haiku-4.5']['direct']['n']}")
+    macro("dirNoSonnetFive", f"{pm['sonnet-5']['direct'].get('denies', 0)} of {pm['sonnet-5']['direct']['n']}")
+    nf = rb["nonhack_flagged"]
+    macro("nonhackFlagK", nf[0])
+    sc2 = rb["secondary_coverage"]
+    macro("secondaryCoverK", sc2[0])
+    macro("secondaryCoverN", sc2[1])
+pd = R.get("preregistered_definition", {})
+if pd:
+    macro("nScratchExtra", pd["n_hacked"] - R["n_hacked"])
 
 (REPO / "paper" / "sections" / "generated").mkdir(parents=True, exist_ok=True)
 (REPO / "paper" / "sections" / "generated" / "numbers.tex").write_text("\n".join(out) + "\n")
