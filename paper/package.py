@@ -3,13 +3,14 @@
 Writes, under ../submission/:
   openreview/  anonymous PDFs for ICLR, ICML and NeurIPS, and supplementary.zip
                (code, tasks, trial records and analysis, with nothing identifying)
-  preprint/    named PDFs in ICLR and ICML format, the arXiv PDF, and
-               arxiv_source.tar.gz (self-contained LaTeX source for arXiv upload)
+  preprint/    named PDFs in ICLR, ICML and NeurIPS format, and arxiv_source.tar.gz
+               (self-contained LaTeX source of the NeurIPS-format version, for arXiv upload)
 
 Run after `make` (which writes build/<version>/<version>.pdf). The arXiv source is
 test-compiled in a temporary directory.
 """
 
+import gzip
 import re
 import shutil
 import subprocess
@@ -23,8 +24,8 @@ REPO = PAPER.parent
 OUT = REPO / "submission"
 
 ANON = {"iclr": "iclr2027_submission.pdf", "icml": "icml2026_submission.pdf", "neurips": "neurips2026_submission.pdf"}
-NAMED = {"iclr_named": "per_the_spec_iclr_format.pdf", "icml_named": "per_the_spec_icml_format.pdf",
-         "arxiv": "per_the_spec_arxiv.pdf"}
+NAMED = {"iclr_named": "paper_iclr_format.pdf", "icml_named": "paper_icml_format.pdf",
+         "neurips_named": "paper_neurips_format.pdf"}
 SUPP_DIRS = ["harness", "tasks", "analysis", "data"]
 
 
@@ -58,7 +59,10 @@ def supplementary():
         with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
             for f in sorted(root.rglob("*")):
                 if f.is_file():
-                    z.write(f, f.relative_to(root.parent))
+                    # Fixed timestamps so repackaging unchanged files gives an identical zip.
+                    info = zipfile.ZipInfo(str(f.relative_to(root.parent)), date_time=(2026, 1, 1, 0, 0, 0))
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    z.writestr(info, f.read_bytes())
     return dest
 
 
@@ -78,7 +82,7 @@ def abstract_text():
 
 
 def arxiv_source():
-    """Collect the arXiv version and everything it inputs into one uploadable directory."""
+    """Collect the NeurIPS-format named version and everything it inputs into one directory for arXiv."""
     with tempfile.TemporaryDirectory() as d:
         src = Path(d) / "src"
         (src / "sections" / "generated").mkdir(parents=True)
@@ -89,9 +93,9 @@ def arxiv_source():
             shutil.copy(f, src / f.relative_to(PAPER))
         for f in ("preamble.tex", "meta.tex"):
             shutil.copy(PAPER / f, src / f)
-        shutil.copy(PAPER / "venues" / "arxiv.tex", src / "main.tex")
+        shutil.copy(PAPER / "venues" / "neurips_named.tex", src / "main.tex")
         shutil.copy(PAPER / "refs.bib", src / "refs.bib")
-        shutil.copy(PAPER / "build" / "arxiv" / "arxiv.bbl", src / "main.bbl")
+        shutil.copy(PAPER / "build" / "neurips_named" / "neurips_named.bbl", src / "main.bbl")
         shutil.copy(PAPER / "styles" / "neurips2026" / "neurips_2026.sty", src / "neurips_2026.sty")
         # Test compile exactly what will be uploaded.
         test = Path(d) / "test"
@@ -105,10 +109,14 @@ def arxiv_source():
         if undefined:
             raise SystemExit("arXiv source has undefined references:\n" + "\n".join(undefined[:5]))
         dest = OUT / "preprint" / "arxiv_source.tar.gz"
-        with tarfile.open(dest, "w:gz") as t:
+        def fixed(info):
+            info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
+            return info
+        with open(dest, "wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz, \
+                tarfile.open(fileobj=gz, mode="w") as t:
             for f in sorted(src.rglob("*")):
                 if f.is_file():
-                    t.add(f, arcname=str(f.relative_to(src)))
+                    t.add(f, arcname=str(f.relative_to(src)), filter=fixed)
     return dest
 
 

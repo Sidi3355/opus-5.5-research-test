@@ -3,14 +3,14 @@
 # the final PDFs, supplementary zip and arXiv source into ../submission/.
 #
 #   iclr, icml, neurips              anonymous submissions (official submission styles)
-#   iclr_named, icml_named, arxiv    named preprints
-VERSIONS = iclr icml neurips iclr_named icml_named arxiv
+#   iclr_named, icml_named, neurips_named    named preprints (neurips_named is also the arXiv version)
+VERSIONS = iclr icml neurips iclr_named icml_named neurips_named
 STY_iclr = iclr2027
 STY_iclr_named = iclr2027
 STY_icml = icml2026
 STY_icml_named = icml2026
 STY_neurips = neurips2026
-STY_arxiv = neurips2026
+STY_neurips_named = neurips2026
 
 all: $(VERSIONS)
 

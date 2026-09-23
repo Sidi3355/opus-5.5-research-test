@@ -18,10 +18,10 @@ edited to add them.
 
 | File | Use |
 |---|---|
-| `per_the_spec_arxiv.pdf` | arXiv preprint (NeurIPS preprint style, "Preprint." footer). |
-| `arxiv_source.tar.gz` | Upload this to arXiv, not the PDF. It is self-contained and has been test-compiled. |
-| `per_the_spec_iclr_format.pdf` | Named copy in ICLR layout, with the venue header removed (the style's final mode would print "Published as a conference paper at ICLR 2027"). |
-| `per_the_spec_icml_format.pdf` | Named copy in ICML layout, using the style's preprint mode. |
+| `paper_iclr_format.pdf` | Named copy in ICLR layout, with the venue header removed (the style's final mode would print "Published as a conference paper at ICLR 2027"). |
+| `paper_icml_format.pdf` | Named copy in ICML layout, using the style's preprint mode. |
+| `paper_neurips_format.pdf` | Named copy in NeurIPS layout, using the style's preprint mode ("Preprint." footer). This is also the arXiv version. |
+| `arxiv_source.tar.gz` | LaTeX source of the NeurIPS-layout copy. Upload this to arXiv, not the PDF; it is self-contained and has been test-compiled. |
 
 Posting on arXiv during review is allowed by ICLR, ICML and NeurIPS; check each venue's
 current policy on timing and wording before posting.

@@ -46,7 +46,7 @@ judging 94, reviews 134).
 | Path | Contents |
 |---|---|
 | `submission/openreview/` | Anonymous ICLR 2027, ICML 2026 and NeurIPS 2026 PDFs and `supplementary.zip`, for double-blind review |
-| `submission/preprint/` | Named PDFs (arXiv, ICLR layout, ICML layout) and `arxiv_source.tar.gz` for arXiv upload |
+| `submission/preprint/` | Named PDFs in ICLR, ICML and NeurIPS layout, and `arxiv_source.tar.gz` (the NeurIPS-layout version) for arXiv upload |
 | `submission/README.md`, `abstract.txt` | Which file goes where; plain-text title, keywords and abstract for submission forms |
 | `website/` | Interactive summary: `template.html` and `copy.json` are built by `build.py` into `index.html` |
 
@@ -55,7 +55,7 @@ judging 94, reviews 134).
 | Path | Contents |
 |---|---|
 | `paper/sections/` | Text shared by every version; `generated/` holds the numbers, tables and examples written by `analysis/` |
-| `paper/venues/` | One wrapper per version: `iclr`, `icml`, `neurips` (anonymous) and `iclr_named`, `icml_named`, `arxiv` (named) |
+| `paper/venues/` | One wrapper per version: `iclr`, `icml`, `neurips` (anonymous) and `iclr_named`, `icml_named`, `neurips_named` (named) |
 | `paper/figures/`, `refs.bib`, `styles/` | Figures from `analysis/figures.py`, bibliography, official venue style files |
 | `paper/Makefile`, `package.py` | `make` builds every version into `paper/build/` (not tracked); `package.py` fills `submission/` |
 
