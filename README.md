@@ -1,12 +1,15 @@
 # Per the Spec: Coding Agents Cite Invented Requirements When They Game Their Tests
 
+<!-- not-in-supplementary -->
 Author: Siddarth Oruganti, Imperial College London (siddarth.oruganti26@imperial.ac.uk)
+<!-- /not-in-supplementary -->
 
 When a test contradicts the specification, AI coding agents often make it pass by
 adopting a rule under which the test is right, writing that rule as ordinary code,
 rewriting the documentation, and telling the user the rule was a requirement. This
 repository contains the full study: tasks, harness, pre-registration, every trial
-record, judge outputs, analysis, the paper in ICLR, ICML, NeurIPS and arXiv formats, and the project website.
+record, judge outputs and analysis, plus the paper in ICLR, ICML, NeurIPS and arXiv formats and the
+project website.
 
 ## Headline results
 
@@ -29,11 +32,35 @@ ran in the Claude Code CLI on 24 impossible-test repositories. Final numbers are
 * Judge labels were checked against a sample coded by the lead agent (itself Claude
   Opus 5.5), not by humans. `analysis/validation/sheet.md` is ready for human coding.
 
+<!-- not-in-supplementary -->
 Interactive summary: https://claude.ai/artifact/DCp5oUYWuQgrseM9ickNqB (private until shared).
+<!-- /not-in-supplementary -->
 Total API cost at list prices: about USD 609 (main 275, minimal pairs 86, pilots 20,
 judging 94, reviews 134).
 
 ## Layout
+
+<!-- not-in-supplementary -->
+**Finished outputs**
+
+| Path | Contents |
+|---|---|
+| `submission/openreview/` | Anonymous ICLR 2027, ICML 2026 and NeurIPS 2026 PDFs and `supplementary.zip`, for double-blind review |
+| `submission/preprint/` | Named PDFs (arXiv, ICLR layout, ICML layout) and `arxiv_source.tar.gz` for arXiv upload |
+| `submission/README.md`, `abstract.txt` | Which file goes where; plain-text title, keywords and abstract for submission forms |
+| `website/` | Interactive summary: `template.html` and `copy.json` are built by `build.py` into `index.html` |
+
+**Paper sources**
+
+| Path | Contents |
+|---|---|
+| `paper/sections/` | Text shared by every version; `generated/` holds the numbers, tables and examples written by `analysis/` |
+| `paper/venues/` | One wrapper per version: `iclr`, `icml`, `neurips` (anonymous) and `iclr_named`, `icml_named`, `arxiv` (named) |
+| `paper/figures/`, `refs.bib`, `styles/` | Figures from `analysis/figures.py`, bibliography, official venue style files |
+| `paper/Makefile`, `package.py` | `make` builds every version into `paper/build/` (not tracked); `package.py` fills `submission/` |
+
+**Research**
+<!-- /not-in-supplementary -->
 
 | Path | Contents |
 |---|---|
@@ -44,16 +71,14 @@ judging 94, reviews 134).
 | `harness/review.py`, `harness/run_review.py` | Code-review experiment (original / honest / no description) |
 | `harness/run_main.py` | Resumable, budget-capped experiment driver |
 | `harness/grade_all.py` | Grades all trials, runs both judges and probe coding, caches outputs |
-| `tasks/` | 24 selected tasks (+3 unselected), `variants_x/` minimal pairs, `DESIGN_BRIEF.md`, `REVIEW.md` (independent audit), `SELECTION.json`, build scripts |
+| `tasks/` | 24 selected tasks (+3 unselected), `variants_x/` minimal pairs, `pilot/`, `DESIGN_BRIEF.md`, `REVIEW.md` (independent audit), `SELECTION.json`, build scripts |
 | `analysis/PREREGISTRATION.md` | Pre-registration and dated amendments (committed before main data) |
-| `analysis/analyze.py` | All confirmatory and exploratory statistics -> `results.json` |
+| `analysis/analyze.py` | All confirmatory and exploratory statistics, written to `results.json` |
+| `analysis/collateral.py` | Hidden-test failures on inputs other than the conflict input, written to `collateral*.json` |
 | `analysis/figures.py`, `make_numbers.py`, `make_tables.py` | Paper figures, LaTeX number macros, appendix tables and verbatim examples |
 | `analysis/validation/` | Blinded validation sheet and labels (coded by the lead agent, not a human) |
-| `data/main/`, `data/e4/` | Every trial record (transcript, tool calls, file diffs, probe) |
+| `data/main/`, `data/e4/`, `data/pilot*/` | Every trial record (transcript, tool calls, file diffs, probe) |
 | `data/judgments/`, `data/review/`, `data/graded/` | Judge outputs, review outputs, per-trial graded rows |
-| `paper/` | Shared sections plus anonymous ICLR 2027, ICML 2026, NeurIPS 2026 wrappers, named ICLR/ICML/arXiv wrappers (`make` builds all), `package.py` |
-| `submission/` | Ready-to-upload files: anonymous PDFs and supplementary zip (`openreview/`), named PDFs and arXiv source (`preprint/`), `abstract.txt` |
-| `website/` | Interactive site: `template.html`, `copy.json`, `build.py` -> `index.html` |
 
 ## Reproducing
 
@@ -67,7 +92,8 @@ python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --out review_opus
 python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --diff_only --out diffonly_opus-5.5.jsonl
 python3 analysis/collateral.py && python3 analysis/collateral.py --data e4.jsonl   # hidden tests on other inputs
 python3 analysis/analyze.py && python3 analysis/make_numbers.py && python3 analysis/make_tables.py
-python3 analysis/figures.py && (cd paper && make all && python3 package.py)
+python3 analysis/figures.py
+(cd paper && make && python3 package.py)                              # paper and submission files
 python3 website/build.py
 ```
 

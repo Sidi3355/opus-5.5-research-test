@@ -1,6 +1,6 @@
 # Submission files
 
-Regenerate everything with `cd paper && make all && python3 package.py`.
+Regenerate everything with `cd paper && make && python3 package.py`.
 
 ## `openreview/`: anonymous, for double-blind review
 

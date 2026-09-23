@@ -1,19 +1,24 @@
-# Build every venue version. Style files are resolved through TEXINPUTS/BSTINPUTS.
-VENUES = iclr icml neurips iclr_named icml_named arxiv
-STY_iclr = styles/iclr2027
-STY_icml = styles/icml2026
-STY_iclr_named = styles/iclr2027
-STY_icml_named = styles/icml2026
-STY_neurips = styles/neurips2026
-STY_arxiv = styles/neurips2026
+# Build every version of the paper. Run from paper/: `make` builds all, `make iclr` builds one.
+# Output goes to build/<version>/<version>.pdf (not tracked); `python3 package.py` then copies
+# the final PDFs, supplementary zip and arXiv source into ../submission/.
+#
+#   iclr, icml, neurips              anonymous submissions (official submission styles)
+#   iclr_named, icml_named, arxiv    named preprints
+VERSIONS = iclr icml neurips iclr_named icml_named arxiv
+STY_iclr = iclr2027
+STY_iclr_named = iclr2027
+STY_icml = icml2026
+STY_icml_named = icml2026
+STY_neurips = neurips2026
+STY_arxiv = neurips2026
 
-all: $(VENUES)
+all: $(VERSIONS)
 
-$(VENUES):
-	cd $@ && TEXINPUTS=.:../$(STY_$@)//: BSTINPUTS=.:../$(STY_$@)//: BIBINPUTS=..: latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
-	cp $@/main.pdf ../paper_$@.pdf 2>/dev/null || true
+$(VERSIONS):
+	TEXINPUTS=.:$(CURDIR)/styles/$(STY_$@)//: BSTINPUTS=$(CURDIR)/styles/$(STY_$@)//: BIBINPUTS=$(CURDIR): \
+	latexmk -pdf -interaction=nonstopmode -halt-on-error -outdir=build/$@ venues/$@.tex
 
 clean:
-	for v in $(VENUES); do (cd $$v && latexmk -C main.tex); done
+	rm -rf build
 
-.PHONY: all clean $(VENUES)
+.PHONY: all clean $(VERSIONS)

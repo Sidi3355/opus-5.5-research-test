@@ -6,9 +6,11 @@ Writes, under ../submission/:
   preprint/    named PDFs in ICLR and ICML format, the arXiv PDF, and
                arxiv_source.tar.gz (self-contained LaTeX source for arXiv upload)
 
-Run after `make all`. The arXiv source is test-compiled in a temporary directory.
+Run after `make` (which writes build/<version>/<version>.pdf). The arXiv source is
+test-compiled in a temporary directory.
 """
 
+import re
 import shutil
 import subprocess
 import tarfile
@@ -30,20 +32,21 @@ def copy_pdfs():
     for sub, table in (("openreview", ANON), ("preprint", NAMED)):
         (OUT / sub).mkdir(parents=True, exist_ok=True)
         for build, name in table.items():
-            shutil.copy(PAPER / build / "main.pdf", OUT / sub / name)
+            shutil.copy(PAPER / "build" / build / f"{build}.pdf", OUT / sub / name)
 
 
 def supplementary():
     """Zip the research artifacts without the paper wrappers, website, or git metadata."""
     readme = (REPO / "README.md").read_text()
-    # Drop lines that could identify the author (links to hosted pages, author line).
+    # Remove everything marked as not for the anonymous bundle (author, links, paper and website).
+    readme = re.sub(r"<!-- not-in-supplementary -->.*?<!-- /not-in-supplementary -->\n", "", readme, flags=re.S)
+    readme = readme.replace(", plus the paper in ICLR, ICML, NeurIPS and arXiv formats and the\nproject website.", ".")
     readme = "\n".join(ln for ln in readme.splitlines()
-                       if "claude.ai" not in ln and not ln.startswith("Author:")) + "\n"
-    readme = "\n".join(ln for ln in readme.splitlines()
-                       if not ln.startswith(("| `paper/`", "| `website/`", "python3 website/"))) + "\n"
-    readme = readme.replace("python3 analysis/figures.py && (cd paper && make)", "python3 analysis/figures.py")
-    readme = readme.replace("record, judge outputs, analysis, the paper in four formats, and the project website.",
-                            "record, judge outputs, and analysis.")
+                       if not ln.startswith(("(cd paper", "python3 website/"))) + "\n"
+    readme = re.sub(r"\n{3,}", "\n\n", readme)
+    for banned in ("Oruganti", "Imperial", "claude.ai", "paper/", "website/"):
+        if banned in readme:
+            raise SystemExit(f"supplementary README still mentions {banned!r}")
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache")
     with tempfile.TemporaryDirectory() as d:
         root = Path(d) / "supplementary"
@@ -61,7 +64,6 @@ def supplementary():
 
 def abstract_text():
     """Plain-text title and abstract with every macro expanded, for submission forms."""
-    import re
     macros = dict(re.findall(r"\\newcommand\{\\(\w+)\}\{(.*)\}", (PAPER / "sections" / "generated" / "numbers.tex").read_text()))
     text = (PAPER / "sections" / "abstract.tex").read_text().strip()
     text = re.sub(r"\\(\w+)(\{\})?", lambda m: macros.get(m.group(1), m.group(0)), text)
@@ -76,7 +78,7 @@ def abstract_text():
 
 
 def arxiv_source():
-    """Flatten the arXiv build into one directory with no parent-relative paths."""
+    """Collect the arXiv version and everything it inputs into one uploadable directory."""
     with tempfile.TemporaryDirectory() as d:
         src = Path(d) / "src"
         (src / "sections" / "generated").mkdir(parents=True)
@@ -84,13 +86,12 @@ def arxiv_source():
         for f in list((PAPER / "sections").glob("*.tex")) + list((PAPER / "sections" / "generated").glob("*.tex")):
             if f.name == "checklist.tex":
                 continue
-            (src / f.relative_to(PAPER)).write_text(f.read_text().replace("../", ""))
+            shutil.copy(f, src / f.relative_to(PAPER))
         for f in ("preamble.tex", "meta.tex"):
-            (src / f).write_text((PAPER / f).read_text().replace("../", ""))
-        main = (PAPER / "arxiv" / "main.tex").read_text().replace("../", "")
-        (src / "main.tex").write_text(main)
+            shutil.copy(PAPER / f, src / f)
+        shutil.copy(PAPER / "venues" / "arxiv.tex", src / "main.tex")
         shutil.copy(PAPER / "refs.bib", src / "refs.bib")
-        shutil.copy(PAPER / "arxiv" / "main.bbl", src / "main.bbl")
+        shutil.copy(PAPER / "build" / "arxiv" / "arxiv.bbl", src / "main.bbl")
         shutil.copy(PAPER / "styles" / "neurips2026" / "neurips_2026.sty", src / "neurips_2026.sty")
         # Test compile exactly what will be uploaded.
         test = Path(d) / "test"
