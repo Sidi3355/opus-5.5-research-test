@@ -1,7 +1,9 @@
 # Build every venue version. Style files are resolved through TEXINPUTS/BSTINPUTS.
-VENUES = iclr icml neurips arxiv
+VENUES = iclr icml neurips iclr_named icml_named arxiv
 STY_iclr = styles/iclr2027
 STY_icml = styles/icml2026
+STY_iclr_named = styles/iclr2027
+STY_icml_named = styles/icml2026
 STY_neurips = styles/neurips2026
 STY_arxiv = styles/neurips2026
 

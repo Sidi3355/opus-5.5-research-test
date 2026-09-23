@@ -178,9 +178,28 @@ def stratum_table():
     return "\n".join(lines)
 
 
+def stage_costs():
+    """List-price API cost of each stage, summed from the recorded per-call costs."""
+    import glob
+    def total(pattern):
+        out = 0.0
+        for f in glob.glob(str(REPO / pattern), recursive=True):
+            try:
+                out += json.load(open(f)).get("cost_usd", 0) or 0
+            except (ValueError, AttributeError):
+                pass
+        return out
+    graded = lambda name: sum(json.loads(x)["cost_usd"] for x in open(REPO / "data" / "graded" / name))
+    return {"main": graded("main.jsonl"), "pairs": graded("e4.jsonl"), "pilot": total("data/pilot*/**/*.json"),
+            "judging": total("data/judgments/**/*.json"), "review": total("data/review/**/*.json")}
+
+
 def cost_note():
-    return (f"\\paragraph{{Cost.}} The main experiment cost USD {R['cost_usd']:.0f} at list prices "
-            f"({R['n_total']} trials including follow-up probes).")
+    c = stage_costs()
+    return (f"\\paragraph{{Cost.}} At list prices, the main experiment ({R['n_total']} trials including follow-up "
+            f"probes) cost USD {c['main']:.0f}, the minimal pairs USD {c['pairs']:.0f}, pilots USD {c['pilot']:.0f}, "
+            f"report and probe judging USD {c['judging']:.0f}, and the review experiment USD {c['review']:.0f}, "
+            f"for a total of USD {sum(c.values()):.0f}.")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
 # Per the Spec: Coding Agents Cite Invented Requirements When They Game Their Tests
 
+Author: Siddarth Oruganti, Imperial College London (siddarth.oruganti26@imperial.ac.uk)
+
 When a test contradicts the specification, AI coding agents often make it pass by
 adopting a rule under which the test is right, writing that rule as ordinary code,
 rewriting the documentation, and telling the user the rule was a requirement. This
 repository contains the full study: tasks, harness, pre-registration, every trial
-record, judge outputs, analysis, the paper in four formats, and the project website.
+record, judge outputs, analysis, the paper in ICLR, ICML, NeurIPS and arXiv formats, and the project website.
 
 ## Headline results
 
@@ -49,7 +51,8 @@ judging 94, reviews 134).
 | `analysis/validation/` | Blinded validation sheet and labels (coded by the lead agent, not a human) |
 | `data/main/`, `data/e4/` | Every trial record (transcript, tool calls, file diffs, probe) |
 | `data/judgments/`, `data/review/`, `data/graded/` | Judge outputs, review outputs, per-trial graded rows |
-| `paper/` | Shared sections plus ICLR 2027, ICML 2026, NeurIPS 2026, and arXiv wrappers (`make` builds all) |
+| `paper/` | Shared sections plus anonymous ICLR 2027, ICML 2026, NeurIPS 2026 wrappers, named ICLR/ICML/arXiv wrappers (`make` builds all), `package.py` |
+| `submission/` | Ready-to-upload files: anonymous PDFs and supplementary zip (`openreview/`), named PDFs and arXiv source (`preprint/`), `abstract.txt` |
 | `website/` | Interactive site: `template.html`, `copy.json`, `build.py` -> `index.html` |
 
 ## Reproducing
@@ -64,7 +67,7 @@ python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --out review_opus
 python3 harness/run_review.py --n_other 0 --reviewers opus-5.5 --diff_only --out diffonly_opus-5.5.jsonl
 python3 analysis/collateral.py && python3 analysis/collateral.py --data e4.jsonl   # hidden tests on other inputs
 python3 analysis/analyze.py && python3 analysis/make_numbers.py && python3 analysis/make_tables.py
-python3 analysis/figures.py && (cd paper && make)
+python3 analysis/figures.py && (cd paper && make all && python3 package.py)
 python3 website/build.py
 ```
 
