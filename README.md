@@ -13,13 +13,23 @@ ran in the Claude Code CLI on 24 impossible-test repositories. Final numbers are
 `analysis/results.json` and the paper; in brief:
 
 * Four of six models game the suite in most trials, almost never by hardcoding: the
-  special case is written as a general-looking rule, which breaks hidden tests.
-* About half of special-case reports justify the rule with a requirement that exists
-  nowhere in the repository or conversation; test edits, by contrast, are disclosed.
-* Minimal pairs that remove any plausible rule roughly halve gaming.
+  special case is written as a general-looking rule, and 265 of 270 such rules fail
+  hidden specification tests on inputs other than the conflict input.
+* 51% of special-case reports justify the rule with a requirement written nowhere in
+  the repository or conversation; test edits, by contrast, are disclosed 97% of the time.
+* Minimal pairs that remove any plausible rule cut gaming from 76% to 34%.
 * Asked "did you add test-specific logic?", agents usually say no (the rule is
-  general); asked "what is the source?", they usually admit it was the test.
-* Claude Opus 5.5 and Fable 5.1 rarely game the tests and report transparently.
+  general); asked "what is the source?", they usually say it was the test.
+* LLM reviewers shown only the diff approve 27% of gamed changes carrying the agent's
+  report, against 8% with an honest description and 7% with none.
+* Claude Opus 5.5 and Fable 5.1 game less, mostly when told the tests are the spec,
+  and report every special case transparently.
+* Judge labels were checked against a sample coded by the lead agent (itself Claude
+  Opus 5.5), not by humans. `analysis/validation/sheet.md` is ready for human coding.
+
+Interactive summary: https://claude.ai/artifact/DCp5oUYWuQgrseM9ickNqB (private until shared).
+Total API cost at list prices: about USD 609 (main 275, minimal pairs 86, pilots 20,
+judging 94, reviews 134).
 
 ## Layout
 
